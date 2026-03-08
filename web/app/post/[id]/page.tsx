@@ -234,7 +234,12 @@ export default function PostPage() {
           }`}>
             {suiNsName ? `🔷 ${displayName}` : displayName}
           </span>
-          <span>· チップ合計: {tipBalance} SUI</span>
+          <span className="text-purple-400 font-medium">· 💜 チップ獲得: {tipBalance.toLocaleString()} 円</span>
+          {configId && (
+            <span className="ml-2 flex items-center gap-1 text-[10px] bg-purple-900/40 border border-purple-800/50 text-purple-300 px-2 rounded-full">
+              ✨ 収益分配 ON
+            </span>
+          )}
         </p>
 
         <div className="prose prose-invert prose-sm max-w-none mb-8
@@ -267,9 +272,9 @@ export default function PostPage() {
             <button
               onClick={handleTip}
               disabled={isPending}
-              className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg transition-colors"
+              className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-medium px-5 py-2 rounded-full transition-all flex items-center gap-2"
             >
-              {isPending ? "送信中..." : "0.1 SUI チップを送る"}
+              {isPending ? "送信中..." : "🎁 100円分サポートする"}
             </button>
           )}
           {isAuthor && (
