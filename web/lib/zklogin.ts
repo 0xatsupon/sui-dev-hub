@@ -6,8 +6,7 @@ import {
   jwtToAddress,
   getZkLoginSignature,
   genAddressSeed,
-} from "@mysten/zklogin";
-import { SuiClient } from "@mysten/sui/client";
+} from "@mysten/sui/zklogin";
 import { Transaction } from "@mysten/sui/transactions";
 
 const PROVER_URL = "https://prover-dev.mystenlabs.com/v1";
@@ -38,7 +37,7 @@ function fromB64(str: string): Uint8Array {
 
 export async function initiateGoogleLogin(
   clientId: string,
-  suiClient: SuiClient
+  suiClient: { getLatestSuiSystemState: () => Promise<{ epoch: string | number }>, executeTransactionBlock: (...args: any[]) => Promise<any> }
 ) {
   const keypair = new Ed25519Keypair();
   const randomness = generateRandomness();
@@ -147,7 +146,7 @@ export function clearZkLoginSession() {
 export async function zkLoginSignAndExecute(
   session: ZkLoginSession,
   tx: Transaction,
-  suiClient: SuiClient
+  suiClient: { getLatestSuiSystemState: () => Promise<{ epoch: string | number }>, executeTransactionBlock: (...args: any[]) => Promise<any> }
 ) {
   let keypair: Ed25519Keypair;
   try {
