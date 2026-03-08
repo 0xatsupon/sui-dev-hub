@@ -156,7 +156,8 @@ export async function zkLoginSignAndExecute(
   }
 
   tx.setSender(session.address);
-  const txBytes = await tx.build({ client: suiClient });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const txBytes = await tx.build({ client: suiClient as any });
   const { signature: userSignature } = await keypair.signTransaction(txBytes);
 
   const addressSeed = genAddressSeed(
