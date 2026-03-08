@@ -167,8 +167,9 @@ export async function zkLoginSignAndExecute(
     session.aud
   ).toString();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const zkLoginSignature = getZkLoginSignature({
-    inputs: { ...session.zkProof, addressSeed },
+    inputs: { ...session.zkProof, addressSeed } as any,
     maxEpoch: session.maxEpoch,
     userSignature,
   });
