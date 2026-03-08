@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
@@ -9,7 +9,7 @@ import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 
 const WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
 
-async function uploadToWalrus(content: string): Promise<string> {
+async function uploadToWalrus(content: string | File): Promise<string> {
   const res = await fetch(`${WALRUS_PUBLISHER}/v1/blobs?epochs=5`, {
     method: "PUT",
     body: content,
@@ -18,6 +18,8 @@ async function uploadToWalrus(content: string): Promise<string> {
   const data = await res.json();
   return data.newlyCreated?.blobObject?.blobId ?? data.alreadyCertified?.blobId;
 }
+
+const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
 export function CreatePost() {
   const account = useCurrentAccount();
@@ -30,6 +32,26 @@ export function CreatePost() {
   const [sponsoring, setSponsoring] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      setError("");
+      const blobId = await uploadToWalrus(file);
+      const imageUrl = `${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`;
+      const imageMarkdown = `\n![${file.name}](${imageUrl})\n`;
+      setContent((prev) => prev + imageMarkdown);
+    } catch (err) {
+      setError(`画像のアップロードに失敗しました: ${String(err)}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSuccess = () => {
     setTitle("");
@@ -111,15 +133,34 @@ export function CreatePost() {
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
-      <button
-        type="submit"
-        disabled={isPending || !title || !content}
-        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors"
-      >
-        {getButtonLabel()}
-      </button>
-      {done && <span className="ml-3 text-green-400 text-sm">投稿しました！</span>}
-      {error && <span className="ml-3 text-red-400 text-sm">{error}</span>}
+      <div className="flex items-center gap-3 mb-4">
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isPending}
+          className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+        >
+          📷 画像をアップロード
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isPending || !title || !content}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors"
+        >
+          {getButtonLabel()}
+        </button>
+        {done && <span className="text-green-400 text-sm">投稿しました！</span>}
+        {error && <span className="text-red-400 text-sm">{error}</span>}
+      </div>
     </form>
   );
 }

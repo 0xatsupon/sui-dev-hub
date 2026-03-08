@@ -12,15 +12,10 @@ export interface ZkLoginSession {
   address: string;
   maxEpoch: number;
   ephemeralPrivKey: string;
-  zkProof: ZkProofInputs;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  zkProof: any;
 }
 
-interface ZkProofInputs {
-  proofPoints: unknown;
-  issBase64Details: unknown;
-  headerBase64: string;
-  addressSeed: string;
-}
 
 function toB64(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
@@ -154,10 +149,10 @@ export async function zkLoginSponsoredSignAndExecute(
 
   const { signature: userSignature } = await keypair.signTransaction(fullTxBytes);
 
-  // Enoki が addressSeed を管理しているのでそのまま proof を使用
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const zkLoginSignature = getZkLoginSignature({
-    inputs: session.zkProof as any,
+    inputs: session.zkProof,
     maxEpoch: session.maxEpoch,
     userSignature,
   });

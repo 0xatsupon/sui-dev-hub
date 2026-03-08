@@ -42,7 +42,7 @@ export default function PostPage() {
   useEffect(() => {
     if (!data?.data) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fields = (data.data.content as any).fields;
+    const fields = (data.data.content as any).fields as any;
     const blobId = decodeBytes(fields.content_hash);
 
     if (blobId.length >= 20 && /^[A-Za-z0-9_-]+$/.test(blobId)) {
@@ -73,7 +73,8 @@ export default function PostPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 text-gray-400">記事が見つかりません</div>
   );
 
-  const fields = (data.data.content as any).fields;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fields = (data.data.content as any).fields as any;
   const title = decodeBytes(fields.title);
   const author = fields.author;
   const tipBalance = Number(fields.tip_balance) / 1e9;
@@ -147,7 +148,8 @@ export default function PostPage() {
           prose-code:text-green-400 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded
           prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700
           prose-blockquote:border-gray-600 prose-blockquote:text-gray-400
-          prose-strong:text-white prose-li:text-gray-200">
+          prose-strong:text-white prose-li:text-gray-200
+          prose-img:rounded-xl prose-img:border prose-img:border-gray-700 prose-img:shadow-lg prose-img:max-h-96 prose-img:object-cover prose-img:mx-auto">
           {contentLoading ? (
             <p className="text-gray-500 text-sm">コンテンツを読み込み中...</p>
           ) : (
