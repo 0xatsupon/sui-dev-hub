@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { SuiClient } from "@mysten/sui/client";
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
 
-const client = new SuiClient({ url: "https://fullnode.testnet.sui.io:443" });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet") });
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    const builtTxBytes = await tx.build({ client });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const builtTxBytes = await tx.build({ client: client as any });
     const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(builtTxBytes);
 
     return NextResponse.json({
