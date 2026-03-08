@@ -5,6 +5,7 @@ import { CreatePost } from "@/components/CreatePost";
 import { PostList } from "@/components/PostList";
 import { ZkLoginButton } from "@/components/ZkLoginButton";
 import { ProfileEditor } from "@/components/ProfileEditor";
+import { TJPYCFaucet } from "@/components/TJPYCFaucet";
 import { useZkLogin } from "@/context/ZkLoginContext";
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <TJPYCFaucet />
             <ZkLoginButton />
             <ConnectButton />
           </div>

@@ -2,7 +2,7 @@
 
 import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { PACKAGE_ID } from "@/lib/sui";
+import { PACKAGE_ID, TJPYC_COIN_TYPE } from "@/lib/sui";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -49,6 +49,20 @@ export default function PostPage() {
     id,
     options: { showContent: true },
   });
+
+  // Fetch CoAuthorConfigSet events to check if revenue sharing is enabled
+  const { data: coAuthorEvents } = useSuiClientQuery("queryEvents", {
+    query: { MoveEventType: `${PACKAGE_ID}::platform::CoAuthorConfigSet` },
+    limit: 50,
+    order: "descending", // newest first
+  });
+
+  const coAuthorConfig = coAuthorEvents?.data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .find((e: any) => e.parsedJson?.post_id === id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ?.parsedJson as any;
+  const configId = coAuthorConfig?.config_id;
 
   useEffect(() => {
     if (!data?.data) return;
@@ -118,14 +132,49 @@ export default function PostPage() {
     }
   };
 
-  const handleTip = () => {
+  const handleTip = async () => {
     if (!account) return;
-    const tx = new Transaction();
-    const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(100_000_000)]);
-    tx.moveCall({
-      target: `${PACKAGE_ID}::platform::tip`,
-      arguments: [tx.object(id), coin],
+    
+    // Fetch TJPYC coins to pay 100 TJPYC (100 * 10^9)
+    const TIP_AMOUNT = 100 * 1_000_000_000;
+    const coins = await suiClient.getCoins({
+      owner: account.address,
+      coinType: TJPYC_COIN_TYPE,
     });
+    
+    const validCoins = coins.data;
+    if (validCoins.length === 0) {
+      alert("TJPYCが不足しています。上の「蛇口」ボタンから取得してください。");
+      return;
+    }
+
+    const tx = new Transaction();
+    
+    let paymentCoinId;
+    if (validCoins.length > 1) {
+      const primaryCoin = tx.object(validCoins[0].coinObjectId);
+      const restCoins = validCoins.slice(1).map(c => tx.object(c.coinObjectId));
+      tx.mergeCoins(primaryCoin, restCoins);
+      paymentCoinId = primaryCoin;
+    } else {
+      paymentCoinId = tx.object(validCoins[0].coinObjectId);
+    }
+    
+    const [tipCoin] = tx.splitCoins(paymentCoinId, [tx.pure.u64(TIP_AMOUNT)]);
+
+    if (configId) {
+      tx.moveCall({
+        target: `${PACKAGE_ID}::platform::tip_with_sharing_token`,
+        typeArguments: [TJPYC_COIN_TYPE],
+        arguments: [tx.object(id), tx.object(configId), tipCoin],
+      });
+    } else {
+      tx.moveCall({
+        target: `${PACKAGE_ID}::platform::tip_token`,
+        typeArguments: [TJPYC_COIN_TYPE],
+        arguments: [tx.object(id), tipCoin],
+      });
+    }
     signAndExecute({ transaction: tx });
   };
 

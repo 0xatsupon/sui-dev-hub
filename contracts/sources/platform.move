@@ -66,6 +66,15 @@ module sui_content_platform::platform {
         price_mist: u64,  // price in MIST (1 SUI = 1_000_000_000 MIST)
     }
 
+    // NEW v7: Generic premium config accepting any token (e.g. TJPYC)
+    // Phantom type T represents the coin type.
+    public struct PremiumConfigToken<phantom T> has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+        price_amount: u64,
+    }
+
     // NEW v6: Revenue Sharing config
     // Stores the co-authors and their share in basis points (100 = 1%, 10000 = 100%)
     // e.g., co_authors = [alice, bob], shares = [7000, 3000] means 70% to alice, 30% to bob
@@ -132,6 +141,32 @@ module sui_content_platform::platform {
         post_id: ID,
         unlocked_by: address,
         amount_paid: u64,
+    }
+
+    // v7 Events (Generic)
+    public struct PremiumLockedToken<phantom T> has copy, drop {
+        post_id: ID,
+        author: address,
+        price_amount: u64,
+    }
+
+    public struct PremiumUnlockedToken<phantom T> has copy, drop {
+        post_id: ID,
+        unlocked_by: address,
+        amount_paid: u64,
+    }
+
+    public struct TipSentToken<phantom T> has copy, drop {
+        post_id: ID,
+        from: address,
+        to: address,
+        amount: u64,
+    }
+
+    public struct RevenueSplitToken<phantom T> has copy, drop {
+        post_id: ID,
+        from: address,
+        total_amount: u64,
     }
 
     // v6 Events
@@ -419,6 +454,104 @@ module sui_content_platform::platform {
             i = i + 1;
         };
         // Send remainder to last co-author (collects any rounding dust)
+        let last_recipient = *vector::borrow(&cfg.co_authors, n - 1);
+        transfer::public_transfer(remaining, last_recipient);
+    }
+
+    // ==========================================
+    // v7: Generic Token Payment Functions (e.g. for TJPYC)
+    // ==========================================
+
+    public fun lock_as_premium_token<T>(
+        post: &Post,
+        price_amount: u64,
+        ctx: &mut TxContext,
+    ) {
+        assert!(post.author == ctx.sender(), ENotAuthor);
+        let cfg_id = object::new(ctx);
+        let cfg = PremiumConfigToken<T> {
+            id: cfg_id,
+            post_id: object::id(post),
+            author: ctx.sender(),
+            price_amount,
+        };
+        event::emit(PremiumLockedToken<T> {
+            post_id: object::id(post),
+            author: ctx.sender(),
+            price_amount,
+        });
+        transfer::share_object(cfg);
+    }
+
+    public fun unlock_premium_token<T>(
+        cfg: &PremiumConfigToken<T>,
+        payment: Coin<T>,
+        ctx: &mut TxContext,
+    ) {
+        let amount = coin::value(&payment);
+        assert!(amount >= cfg.price_amount, EInsufficientPayment);
+        // Transfer to author
+        transfer::public_transfer(payment, cfg.author);
+
+        // Issue unlock receipt (reusing v5 PremiumUnlock struct for compatibility/simplicity)
+        let unlock_id = object::new(ctx);
+        let receipt = PremiumUnlock {
+            id: unlock_id,
+            post_id: cfg.post_id,
+            unlocked_by: ctx.sender(),
+        };
+        event::emit(PremiumUnlockedToken<T> {
+            post_id: cfg.post_id,
+            unlocked_by: ctx.sender(),
+            amount_paid: amount,
+        });
+        transfer::transfer(receipt, ctx.sender());
+    }
+
+    public fun tip_token<T>(
+        post: &mut Post, // We update tip_balance but Note: tip_balance is technically conceptually SUI natively, but we increment it anyway generically or ignore it. For now, incrementing it is fine.
+        payment: Coin<T>,
+        ctx: &mut TxContext,
+    ) {
+        let amount = coin::value(&payment);
+        assert!(amount > 0, EInsufficientTip);
+        
+        event::emit(TipSentToken<T> {
+            post_id: object::id(post),
+            from: ctx.sender(),
+            to: post.author,
+            amount,
+        });
+        transfer::public_transfer(payment, post.author);
+    }
+
+    public fun tip_with_sharing_token<T>(
+        post: &Post, // Made immutable since tip_balance is SUI-specific conceptually
+        cfg: &CoAuthorConfig,
+        payment: Coin<T>,
+        ctx: &mut TxContext,
+    ) {
+        assert!(cfg.post_id == object::id(post), ENotAuthor);
+        let total_amount = coin::value(&payment);
+        assert!(total_amount > 0, EInsufficientTip);
+
+        event::emit(RevenueSplitToken<T> {
+            post_id: object::id(post),
+            from: ctx.sender(),
+            total_amount,
+        });
+
+        let n = vector::length(&cfg.co_authors);
+        let mut remaining = payment;
+        let mut i = 0;
+        while (i < n - 1) {
+            let share_bps = *vector::borrow(&cfg.shares_bps, i);
+            let amount = (total_amount * share_bps) / 10000;
+            let split_coin = coin::split(&mut remaining, amount, ctx);
+            let recipient = *vector::borrow(&cfg.co_authors, i);
+            transfer::public_transfer(split_coin, recipient);
+            i = i + 1;
+        };
         let last_recipient = *vector::borrow(&cfg.co_authors, n - 1);
         transfer::public_transfer(remaining, last_recipient);
     }
