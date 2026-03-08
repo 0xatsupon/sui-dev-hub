@@ -6,6 +6,12 @@ module sui_content_platform::platform {
     // ===== Errors =====
     const ENotAuthor: u64 = 1;
     const EInsufficientTip: u64 = 2;
+    const EInsufficientPayment: u64 = 3;
+    const EPremiumAlreadyFree: u64 = 4;
+
+    // ===== Constants =====
+    // Default premium price: 0.5 SUI
+    const DEFAULT_PREMIUM_PRICE_MIST: u64 = 500_000_000;
 
     // ===== Objects =====
 
@@ -17,17 +23,17 @@ module sui_content_platform::platform {
         total_earned: u64,
     }
 
-    // Original Post struct preserved (must not change field count/order in compatible upgrades)
+    // Original Post struct preserved (compatible upgrade)
     public struct Post has key, store {
         id: UID,
         author: address,
         title: vector<u8>,
-        content_hash: vector<u8>,  // Walrus blob ID
+        content_hash: vector<u8>,  // Walrus blob ID for full content
         tip_balance: u64,
         created_at: u64,
     }
 
-    // NEW: Comment Object (added in v3)
+    // NEW v3: Comment Object
     public struct Comment has key, store {
         id: UID,
         post_id: ID,
@@ -36,11 +42,28 @@ module sui_content_platform::platform {
         created_at: u64,
     }
 
-    // NEW: Like receipt Object (added in v3) - prevents duplicate likes
+    // NEW v3: Like receipt (one per liker per post)
     public struct LikeReceipt has key, store {
         id: UID,
         post_id: ID,
         from: address,
+    }
+
+    // NEW v5: Premium content unlock receipt
+    // Owning this object proves payment was made to read premium content
+    public struct PremiumUnlock has key, store {
+        id: UID,
+        post_id: ID,
+        unlocked_by: address,
+    }
+
+    // NEW v5: Premium post price info (stored off-chain - contract just handles payments)
+    // Author calls set_premium_price to store price, readers call unlock_premium to pay
+    public struct PremiumConfig has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+        price_mist: u64,  // price in MIST (1 SUI = 1_000_000_000 MIST)
     }
 
     // ===== Events =====
@@ -75,7 +98,7 @@ module sui_content_platform::platform {
         author: address,
     }
 
-    // NEW: Events (added in v3)
+    // v3 Events
     public struct PostLiked has copy, drop {
         post_id: ID,
         from: address,
@@ -85,6 +108,19 @@ module sui_content_platform::platform {
         comment_id: ID,
         post_id: ID,
         author: address,
+    }
+
+    // v5 Events
+    public struct PremiumLocked has copy, drop {
+        post_id: ID,
+        author: address,
+        price_mist: u64,
+    }
+
+    public struct PremiumUnlocked has copy, drop {
+        post_id: ID,
+        unlocked_by: address,
+        amount_paid: u64,
     }
 
     // ===== Functions =====
@@ -103,13 +139,11 @@ module sui_content_platform::platform {
             bio: bio,
             total_earned: 0,
         };
-        
         event::emit(ProfileCreated {
             profile_id: id_copy,
             owner: ctx.sender(),
             username: profile.username,
         });
-        
         profile
     }
 
@@ -122,7 +156,6 @@ module sui_content_platform::platform {
         assert!(profile.owner == ctx.sender(), ENotAuthor);
         profile.username = new_username;
         profile.bio = new_bio;
-
         event::emit(ProfileUpdated {
             profile_id: object::id(profile),
             owner: ctx.sender(),
@@ -153,7 +186,7 @@ module sui_content_platform::platform {
         transfer::share_object(post);
     }
 
-    // NEW: Like a post (v3)
+    // v3: Like a post
     public fun like_post(
         post: &Post,
         ctx: &mut TxContext,
@@ -171,7 +204,7 @@ module sui_content_platform::platform {
         transfer::transfer(receipt, ctx.sender());
     }
 
-    // NEW: Comment on a post (v3)
+    // v3: Comment on a post
     public fun add_comment(
         post: &Post,
         content: vector<u8>,
@@ -194,6 +227,54 @@ module sui_content_platform::platform {
         transfer::share_object(comment);
     }
 
+    // v5: Author locks a post as premium with a price
+    public fun lock_as_premium(
+        post: &Post,
+        price_mist: u64,
+        ctx: &mut TxContext,
+    ) {
+        assert!(post.author == ctx.sender(), ENotAuthor);
+        let cfg_id = object::new(ctx);
+        let cfg = PremiumConfig {
+            id: cfg_id,
+            post_id: object::id(post),
+            author: ctx.sender(),
+            price_mist,
+        };
+        event::emit(PremiumLocked {
+            post_id: object::id(post),
+            author: ctx.sender(),
+            price_mist,
+        });
+        transfer::share_object(cfg);
+    }
+
+    // v5: Reader pays to unlock premium content, receives PremiumUnlock receipt
+    public fun unlock_premium(
+        cfg: &PremiumConfig,
+        payment: Coin<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        let amount = coin::value(&payment);
+        assert!(amount >= cfg.price_mist, EInsufficientPayment);
+        // Transfer payment to author
+        transfer::public_transfer(payment, cfg.author);
+
+        // Issue unlock receipt to buyer
+        let unlock_id = object::new(ctx);
+        let receipt = PremiumUnlock {
+            id: unlock_id,
+            post_id: cfg.post_id,
+            unlocked_by: ctx.sender(),
+        };
+        event::emit(PremiumUnlocked {
+            post_id: cfg.post_id,
+            unlocked_by: ctx.sender(),
+            amount_paid: amount,
+        });
+        transfer::transfer(receipt, ctx.sender());
+    }
+
     public fun tip(
         post: &mut Post,
         payment: Coin<SUI>,
@@ -201,16 +282,13 @@ module sui_content_platform::platform {
     ) {
         let amount = coin::value(&payment);
         assert!(amount > 0, EInsufficientTip);
-
         post.tip_balance = post.tip_balance + amount;
-
         event::emit(TipSent {
             post_id: object::id(post),
             from: ctx.sender(),
             to: post.author,
             amount,
         });
-
         transfer::public_transfer(payment, post.author);
     }
 
@@ -219,7 +297,6 @@ module sui_content_platform::platform {
         ctx: &mut TxContext,
     ) {
         assert!(profile.owner == ctx.sender(), ENotAuthor);
-        // tips are sent directly to author in tip(), so nothing to withdraw here
     }
 
     public fun delete_post(post: Post, ctx: &mut TxContext) {
@@ -233,8 +310,11 @@ module sui_content_platform::platform {
     }
 
     // ===== View Functions =====
-
     public fun get_post_info(post: &Post): (address, vector<u8>, u64) {
         (post.author, post.title, post.tip_balance)
+    }
+
+    public fun premium_price(cfg: &PremiumConfig): u64 {
+        cfg.price_mist
     }
 }
