@@ -59,13 +59,16 @@ export function ProfileEditor() {
         ],
       });
     } else {
-      tx.moveCall({
+      // create_profile returns a Profile object which MUST be transferred,
+      // otherwise the tx fails with UnusedValueWithoutDrop
+      const [profileObj] = tx.moveCall({
         target: `${PACKAGE_ID}::platform::create_profile`,
         arguments: [
           tx.pure.string(username),
           tx.pure.string(bio),
         ],
       });
+      tx.transferObjects([profileObj], tx.pure.address(address));
     }
 
     const handleSuccess = async () => {
