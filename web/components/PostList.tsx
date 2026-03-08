@@ -29,6 +29,17 @@ function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+function parseTitle(rawTitle: string): { cleanTitle: string; tags: string[] } {
+  const tagRegex = /\[([^\]]+)\]/g;
+  const tags: string[] = [];
+  let match;
+  while ((match = tagRegex.exec(rawTitle)) !== null) {
+    tags.push(match[1]);
+  }
+  const cleanTitle = rawTitle.replace(/\s*\[[^\]]+\]/g, "").trim();
+  return { cleanTitle, tags };
+}
+
 function PostCard({ post }: { post: Post }) {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
@@ -39,6 +50,7 @@ function PostCard({ post }: { post: Post }) {
   const fields = post.content.fields;
   const isPending = walletPending || zkPending;
   const { displayName, suiNsName } = useAuthorName(fields.author);
+  const { cleanTitle, tags } = parseTitle(decodeBytes(fields.title));
 
   const isAuthor =
     (account && account.address === fields.author) ||
@@ -90,8 +102,15 @@ function PostCard({ post }: { post: Post }) {
       onClick={() => router.push(`/post/${post.objectId}`)}
     >
       <h3 className="text-white font-semibold text-lg mb-1">
-        {decodeBytes(fields.title)}
+        {cleanTitle}
       </h3>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {tags.map((tag) => (
+            <span key={tag} className="bg-blue-950 text-blue-300 text-[10px] px-1.5 py-0.5 rounded-full">#{tag}</span>
+          ))}
+        </div>
+      )}
       <p className="text-gray-500 text-xs mb-3 flex items-center gap-2">
         <span className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
           suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"

@@ -21,6 +21,8 @@ async function uploadToWalrus(content: string | File): Promise<string> {
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
+const COMMON_TAGS = ["Move", "Sui", "DeFi", "NFT", "zkLogin", "Walrus", "Tutorial", "Security"];
+
 export function CreatePost() {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
@@ -28,11 +30,36 @@ export function CreatePost() {
   const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [sponsoring, setSponsoring] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addTag = (tag: string) => {
+    const clean = tag.trim().replace(/^#/, "");
+    if (clean && !tags.includes(clean) && tags.length < 5) {
+      setTags((prev) => [...prev, clean]);
+    }
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => setTags((prev) => prev.filter((t) => t !== tag));
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === " " || e.key === ",") {
+      e.preventDefault();
+      addTag(tagInput);
+    }
+  };
+
+  // Tags are stored in title as a suffix: "My Article Title [Move][Sui]"
+  const buildFinalTitle = () => {
+    const tagSuffix = tags.map((t) => `[${t}]`).join("");
+    return tagSuffix ? `${title} ${tagSuffix}` : title;
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,6 +83,7 @@ export function CreatePost() {
   const handleSuccess = () => {
     setTitle("");
     setContent("");
+    setTags([]);
     setDone(true);
     setTimeout(() => setDone(false), 3000);
   };
@@ -82,7 +110,7 @@ export function CreatePost() {
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::create_post`,
       arguments: [
-        tx.pure.string(title),
+        tx.pure.string(buildFinalTitle()),
         tx.pure.string(blobId),
       ],
     });
@@ -133,6 +161,40 @@ export function CreatePost() {
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
+
+      {/* Tag Input */}
+      <div className="mb-4">
+        <div className="flex flex-wrap gap-2 mb-2">
+          {tags.map((tag) => (
+            <span key={tag} className="flex items-center gap-1 bg-blue-900 text-blue-300 text-xs px-2 py-1 rounded-full">
+              #{tag}
+              <button type="button" onClick={() => removeTag(tag)} className="hover:text-white ml-1">×</button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 bg-gray-800 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="タグを追加（例: Move, Sui）"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+          />
+        </div>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {COMMON_TAGS.filter((t) => !tags.includes(t)).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => addTag(t)}
+              className="text-xs text-gray-400 hover:text-blue-300 border border-gray-700 hover:border-blue-700 rounded-full px-2 py-0.5 transition-colors"
+            >
+              +{t}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 mb-4">
         <input
           type="file"

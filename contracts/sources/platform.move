@@ -17,6 +17,7 @@ module sui_content_platform::platform {
         total_earned: u64,
     }
 
+    // Original Post struct preserved (must not change field count/order in compatible upgrades)
     public struct Post has key, store {
         id: UID,
         author: address,
@@ -24,6 +25,22 @@ module sui_content_platform::platform {
         content_hash: vector<u8>,  // Walrus blob ID
         tip_balance: u64,
         created_at: u64,
+    }
+
+    // NEW: Comment Object (added in v3)
+    public struct Comment has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+        content: vector<u8>,
+        created_at: u64,
+    }
+
+    // NEW: Like receipt Object (added in v3) - prevents duplicate likes
+    public struct LikeReceipt has key, store {
+        id: UID,
+        post_id: ID,
+        from: address,
     }
 
     // ===== Events =====
@@ -54,6 +71,18 @@ module sui_content_platform::platform {
     }
 
     public struct PostDeleted has copy, drop {
+        post_id: ID,
+        author: address,
+    }
+
+    // NEW: Events (added in v3)
+    public struct PostLiked has copy, drop {
+        post_id: ID,
+        from: address,
+    }
+
+    public struct CommentCreated has copy, drop {
+        comment_id: ID,
         post_id: ID,
         author: address,
     }
@@ -124,6 +153,47 @@ module sui_content_platform::platform {
         transfer::share_object(post);
     }
 
+    // NEW: Like a post (v3)
+    public fun like_post(
+        post: &Post,
+        ctx: &mut TxContext,
+    ) {
+        let like_id = object::new(ctx);
+        let receipt = LikeReceipt {
+            id: like_id,
+            post_id: object::id(post),
+            from: ctx.sender(),
+        };
+        event::emit(PostLiked {
+            post_id: object::id(post),
+            from: ctx.sender(),
+        });
+        transfer::transfer(receipt, ctx.sender());
+    }
+
+    // NEW: Comment on a post (v3)
+    public fun add_comment(
+        post: &Post,
+        content: vector<u8>,
+        ctx: &mut TxContext,
+    ) {
+        let comment_id = object::new(ctx);
+        let id_copy = object::uid_to_inner(&comment_id);
+        let comment = Comment {
+            id: comment_id,
+            post_id: object::id(post),
+            author: ctx.sender(),
+            content,
+            created_at: ctx.epoch(),
+        };
+        event::emit(CommentCreated {
+            comment_id: id_copy,
+            post_id: object::id(post),
+            author: ctx.sender(),
+        });
+        transfer::share_object(comment);
+    }
+
     public fun tip(
         post: &mut Post,
         payment: Coin<SUI>,
@@ -150,7 +220,6 @@ module sui_content_platform::platform {
     ) {
         assert!(profile.owner == ctx.sender(), ENotAuthor);
         // tips are sent directly to author in tip(), so nothing to withdraw here
-        // this function is for future use with escrow pattern
     }
 
     public fun delete_post(post: Post, ctx: &mut TxContext) {
