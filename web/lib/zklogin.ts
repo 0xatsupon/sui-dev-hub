@@ -143,6 +143,61 @@ export function clearZkLoginSession() {
   sessionStorage.removeItem("zk_max_epoch");
 }
 
+export async function zkLoginSponsoredSignAndExecute(
+  session: ZkLoginSession,
+  tx: Transaction,
+  suiClient: { executeTransactionBlock: (...args: any[]) => Promise<any> }
+) {
+  // Build just the transaction kind (no gas needed)
+  const txKindBytes = await tx.build({ onlyTransactionKind: true });
+  const txKindB64 = Buffer.from(txKindBytes).toString("base64");
+
+  // Request sponsor to pay gas
+  const sponsorRes = await fetch("/api/sponsor", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ txKindBytes: txKindB64, sender: session.address }),
+  });
+
+  if (!sponsorRes.ok) {
+    const err = await sponsorRes.text();
+    throw new Error(`Sponsor failed: ${err}`);
+  }
+
+  const { txBytes, sponsorSignature } = await sponsorRes.json();
+  const fullTxBytes = new Uint8Array(Buffer.from(txBytes, "base64"));
+
+  // Sign with zkLogin ephemeral key
+  let keypair: Ed25519Keypair;
+  try {
+    keypair = Ed25519Keypair.fromSecretKey(session.ephemeralPrivKey);
+  } catch {
+    keypair = Ed25519Keypair.fromSecretKey(fromB64(session.ephemeralPrivKey));
+  }
+
+  const { signature: userSignature } = await keypair.signTransaction(fullTxBytes);
+
+  const addressSeed = genAddressSeed(
+    BigInt(session.userSalt),
+    "sub",
+    session.sub,
+    session.aud
+  ).toString();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const zkLoginSignature = getZkLoginSignature({
+    inputs: { ...session.zkProof, addressSeed } as any,
+    maxEpoch: session.maxEpoch,
+    userSignature,
+  });
+
+  return suiClient.executeTransactionBlock({
+    transactionBlock: fullTxBytes,
+    signature: [zkLoginSignature, sponsorSignature],
+    options: { showEffects: true },
+  });
+}
+
 export async function zkLoginSignAndExecute(
   session: ZkLoginSession,
   tx: Transaction,
