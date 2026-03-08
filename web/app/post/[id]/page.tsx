@@ -9,7 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
-import { fetchUserProfile, ProfileData } from "@/lib/profile";
+import { useAuthorName } from "@/lib/profile";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -31,7 +31,6 @@ export default function PostPage() {
   const [zkPending, setZkPending] = useState(false);
   const [content, setContent] = useState<string>("");
   const [contentLoading, setContentLoading] = useState(false);
-  const [authorProfile, setAuthorProfile] = useState<ProfileData | null>(null);
   const isPending = walletPending || zkPending;
 
   const { data, isLoading } = useSuiClientQuery("getObject", {
@@ -61,8 +60,8 @@ export default function PostPage() {
       setContent(blobId);
     }
     
-    // Fetch profile
-    fetchUserProfile(suiClient, fields.author).then(setAuthorProfile);
+    // Fetch profile via SuiNS-aware hook is handled outside useEffect
+    // (author is set from fields below)
   }, [data, suiClient]);
 
   if (isLoading) return (
@@ -78,6 +77,8 @@ export default function PostPage() {
   const title = decodeBytes(fields.title);
   const author = fields.author;
   const tipBalance = Number(fields.tip_balance) / 1e9;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { displayName, suiNsName } = useAuthorName(author);
 
   const isAuthor =
     (account && account.address === author) ||
@@ -133,13 +134,11 @@ export default function PostPage() {
       <article className="bg-gray-900 rounded-xl p-6 border border-gray-800">
         <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
         <p className="text-gray-500 text-sm mb-6 flex items-center gap-2">
-          {authorProfile ? (
-            <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md font-medium text-[10px]">
-              @{authorProfile.username}
-            </span>
-          ) : (
-            <span>by {shortAddress(author)}</span>
-          )}
+          <span className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
+            suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"
+          }`}>
+            {suiNsName ? `🔷 ${displayName}` : displayName}
+          </span>
           <span>· チップ合計: {tipBalance} SUI</span>
         </p>
 

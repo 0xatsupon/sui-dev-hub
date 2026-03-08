@@ -6,8 +6,8 @@ import { PACKAGE_ID, OLD_PACKAGE_ID } from "@/lib/sui";
 import { useRouter } from "next/navigation";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
-import { useState, useEffect } from "react";
-import { fetchUserProfile, ProfileData } from "@/lib/profile";
+import { useState } from "react";
+import { useAuthorName } from "@/lib/profile";
 
 type Post = {
   objectId: string;
@@ -35,14 +35,10 @@ function PostCard({ post }: { post: Post }) {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
   const [zkPending, setZkPending] = useState(false);
-  const [authorProfile, setAuthorProfile] = useState<ProfileData | null>(null);
   const router = useRouter();
   const fields = post.content.fields;
   const isPending = walletPending || zkPending;
-
-  useEffect(() => {
-    fetchUserProfile(suiClient, fields.author).then(setAuthorProfile);
-  }, [suiClient, fields.author]);
+  const { displayName, suiNsName } = useAuthorName(fields.author);
 
   const isAuthor =
     (account && account.address === fields.author) ||
@@ -97,13 +93,11 @@ function PostCard({ post }: { post: Post }) {
         {decodeBytes(fields.title)}
       </h3>
       <p className="text-gray-500 text-xs mb-3 flex items-center gap-2">
-        {authorProfile ? (
-          <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md font-medium text-[10px]">
-            @{authorProfile.username}
-          </span>
-        ) : (
-          <span>by {shortAddress(fields.author)}</span>
-        )}
+        <span className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
+          suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"
+        }`}>
+          {suiNsName ? `🔷 ${displayName}` : displayName}
+        </span>
         <span>· チップ合計: {Number(fields.tip_balance) / 1e9} SUI</span>
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
