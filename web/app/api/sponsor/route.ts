@@ -3,7 +3,7 @@ import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
 
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet") });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
 
 export async function POST(req: NextRequest) {
   try {
