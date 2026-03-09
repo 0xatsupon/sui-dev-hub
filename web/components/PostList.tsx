@@ -151,37 +151,58 @@ function PostCard({ post }: { post: Post }) {
 }
 
 function useAllPostIds() {
-  const { data: newData, isPending: isNewPending } = useSuiClientQuery(
-    "queryEvents",
+  const { data: newTxs, isPending: isNewPending } = useSuiClientQuery(
+    "queryTransactionBlocks",
     {
-      query: { MoveEventType: `${PACKAGE_ID}::platform::PostCreated` },
+      filter: { MoveFunction: { package: PACKAGE_ID, module: "platform", function: "create_post" } },
+      options: { showEvents: true },
       limit: 50,
       order: "descending",
     },
-    { refetchInterval: 5000 } // Poll every 5 seconds to catch new posts
+    { refetchInterval: 5000 }
   );
   
-  const { data: oldData, isPending: isOldPending } = useSuiClientQuery("queryEvents", {
-    query: { MoveEventType: `${OLD_PACKAGE_ID}::platform::PostCreated` },
-    limit: 20,
-    order: "descending",
-  });
-  
-  const { data: deletedData } = useSuiClientQuery(
-    "queryEvents",
+  const { data: oldTxs, isPending: isOldPending } = useSuiClientQuery(
+    "queryTransactionBlocks",
     {
-      query: { MoveEventType: `${PACKAGE_ID}::platform::PostDeleted` },
+      filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "create_post" } },
+      options: { showEvents: true },
+      limit: 20,
+      order: "descending",
+    }
+  );
+  
+  const { data: deleteTxs } = useSuiClientQuery(
+    "queryTransactionBlocks",
+    {
+      filter: { MoveFunction: { package: PACKAGE_ID, module: "platform", function: "delete_post" } },
+      options: { showEvents: true },
       limit: 50,
+      order: "descending",
     },
     { refetchInterval: 10000 }
   );
 
-  const deletedIds = new Set(
-    (deletedData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id)
-  );
+  const getPostIdsFromTxs = (txsData: any[] | undefined, eventSuffix: string) => {
+    const ids: string[] = [];
+    if (!txsData) return ids;
+    txsData.forEach((tx) => {
+      if (tx.events) {
+        tx.events.forEach((ev: any) => {
+          if (ev.type.includes(eventSuffix) && ev.parsedJson?.post_id) {
+            ids.push(ev.parsedJson.post_id as string);
+          }
+        });
+      }
+    });
+    return ids;
+  };
 
-  const newIds = (newData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id);
-  const oldIds = (oldData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id);
+  const newIds = getPostIdsFromTxs(newTxs?.data, "::platform::PostCreated");
+  const oldIds = getPostIdsFromTxs(oldTxs?.data, "::platform::PostCreated");
+  const deletedIdsList = getPostIdsFromTxs(deleteTxs?.data, "::platform::PostDeleted");
+  
+  const deletedIds = new Set(deletedIdsList);
 
   return {
     postIds: [...new Set([...newIds, ...oldIds])].filter((id) => !deletedIds.has(id)),

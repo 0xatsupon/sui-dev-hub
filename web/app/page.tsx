@@ -1,16 +1,16 @@
 "use client";
 
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
-import { CreatePost } from "@/components/CreatePost";
 import { PostList } from "@/components/PostList";
 import { ZkLoginButton } from "@/components/ZkLoginButton";
-import { ProfileEditor } from "@/components/ProfileEditor";
 import { TJPYCFaucet } from "@/components/TJPYCFaucet";
 import { useZkLogin } from "@/context/ZkLoginContext";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
+  const router = useRouter();
 
   const canPost = account || session;
 
@@ -69,9 +69,13 @@ export default function Home() {
 
         {/* Post creation panel */}
         {canPost && (
-          <div className="space-y-4 mb-10">
-            <ProfileEditor />
-            <CreatePost />
+          <div className="mb-10 text-center">
+            <button
+              onClick={() => router.push("/create")}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-blue-500/50 transition-all transform hover:-translate-y-1"
+            >
+              ✍️ 記事を投稿する
+            </button>
           </div>
         )}
         {!canPost && (
