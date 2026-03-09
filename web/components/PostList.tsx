@@ -112,9 +112,15 @@ function PostCard({ post }: { post: Post }) {
         </div>
       )}
       <p className="text-gray-500 text-xs mb-3 flex items-center gap-2">
-        <span className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
-          suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"
-        }`}>
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            router.push(`/profile/${fields.author}`);
+          }}
+          className={`px-2 py-0.5 rounded-md font-medium text-[10px] cursor-pointer transition-colors ${
+            suiNsName ? "bg-blue-900 text-blue-300 hover:bg-blue-800" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+          }`}
+        >
           {suiNsName ? `🔷 ${displayName}` : displayName}
         </span>
         <span>· 💜 {(Number(fields.tip_balance) / 1e9).toLocaleString()} 円</span>
@@ -145,7 +151,7 @@ function PostCard({ post }: { post: Post }) {
 }
 
 function useAllPostIds() {
-  const { data: newData } = useSuiClientQuery(
+  const { data: newData, isPending: isNewPending } = useSuiClientQuery(
     "queryEvents",
     {
       query: { MoveEventType: `${PACKAGE_ID}::platform::PostCreated` },
@@ -155,7 +161,7 @@ function useAllPostIds() {
     { refetchInterval: 5000 } // Poll every 5 seconds to catch new posts
   );
   
-  const { data: oldData } = useSuiClientQuery("queryEvents", {
+  const { data: oldData, isPending: isOldPending } = useSuiClientQuery("queryEvents", {
     query: { MoveEventType: `${OLD_PACKAGE_ID}::platform::PostCreated` },
     limit: 20,
     order: "descending",
@@ -177,23 +183,55 @@ function useAllPostIds() {
   const newIds = (newData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id);
   const oldIds = (oldData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id);
 
-  return [...new Set([...newIds, ...oldIds])].filter((id) => !deletedIds.has(id));
+  return {
+    postIds: [...new Set([...newIds, ...oldIds])].filter((id) => !deletedIds.has(id)),
+    isEventsLoading: isNewPending || isOldPending,
+  };
 }
 
-export function PostList() {
-  const postIds = useAllPostIds();
+export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
+  const { postIds, isEventsLoading } = useAllPostIds();
 
-  const { data: objects, isLoading } = useSuiClientQuery(
+  const { data: objects, isLoading: isObjectsLoading } = useSuiClientQuery(
     "multiGetObjects",
     { ids: postIds, options: { showContent: true } },
     { enabled: postIds.length > 0 }
   );
 
-  if (isLoading) return <p className="text-gray-500 text-sm">読み込み中...</p>;
+  const isLoading = isEventsLoading || (postIds.length > 0 && isObjectsLoading);
 
-  const validPosts = (objects ?? []).filter((obj) => obj.data?.content);
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-200">最新記事</h2>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse bg-gray-900 rounded-xl p-5 border border-gray-800">
+            <div className="h-6 bg-gray-800 rounded-md w-3/4 mb-4"></div>
+            <div className="flex gap-2 mb-4">
+              <div className="h-5 bg-gray-800 rounded-full w-16"></div>
+              <div className="h-5 bg-gray-800 rounded-full w-16"></div>
+            </div>
+            <div className="h-4 bg-gray-800 rounded-md w-1/2 mb-5"></div>
+            <div className="flex gap-2">
+              <div className="h-8 bg-gray-800 rounded-lg w-24"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
-  if (!validPosts.length) return <p className="text-gray-500 text-sm">まだ記事がありません。最初の投稿をしてみましょう！</p>;
+  const validPosts = (objects ?? []).filter((obj) => {
+    if (!obj.data?.content) return false;
+    if (authorAddress) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const author = (obj.data.content as any).fields?.author;
+      return author === authorAddress;
+    }
+    return true;
+  });
+
+  if (!validPosts.length) return <p className="text-gray-500 text-sm">まだ記事がありません。</p>;
 
   return (
     <div className="space-y-4">

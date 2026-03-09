@@ -20,6 +20,11 @@ function decodeBytes(bytes: number[]): string {
   return new TextDecoder().decode(new Uint8Array(bytes));
 }
 
+function shortAddress(addr: string): string {
+  if (!addr) return "";
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
 // Extract tags from title: "My Title [Move][Sui]" → { cleanTitle: "My Title", tags: ["Move", "Sui"] }
 function parseTitle(rawTitle: string): { cleanTitle: string; tags: string[] } {
   const tagRegex = /\[([^\]]+)\]/g;
@@ -68,7 +73,7 @@ export default function PostPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const authorAddress = data?.data ? (data.data.content as any)?.fields?.author ?? "" : "";
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { displayName, suiNsName } = useAuthorName(authorAddress);
+  const { displayName, suiNsName, profile, loading: profileLoading } = useAuthorName(authorAddress);
 
   useEffect(() => {
     if (!data?.data) return;
@@ -258,6 +263,44 @@ export default function PostPage() {
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           )}
+        </div>
+
+        {/* Author Card */}
+        <div className="mt-12 pt-8 border-t border-gray-800">
+          <h3 className="text-lg font-bold text-white mb-6">この記事を書いた人</h3>
+          <div 
+            onClick={() => router.push(`/profile/${authorAddress}`)}
+            className="group block bg-gray-900/50 hover:bg-gray-800/50 rounded-2xl p-6 border border-gray-800 hover:border-gray-700 transition-all cursor-pointer relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 border-2 border-gray-700 shadow-lg flex-shrink-0 flex items-center justify-center text-2xl">
+                {profile?.username ? profile.username.charAt(0).toUpperCase() : "👤"}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`px-2 py-0.5 rounded-md font-medium text-xs ${
+                    suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"
+                  }`}>
+                    {suiNsName ? `🔷 ${displayName}` : displayName}
+                  </span>
+                  <span className="text-gray-500 text-xs font-mono">
+                    {shortAddress(authorAddress)}
+                  </span>
+                </div>
+                {profileLoading ? (
+                  <div className="h-4 bg-gray-800 rounded w-3/4 animate-pulse mt-2"></div>
+                ) : (
+                  <p className="text-gray-400 text-sm leading-relaxed mt-2 line-clamp-2">
+                    {profile?.bio || "自己紹介はまだありません。"}
+                  </p>
+                )}
+              </div>
+              <div className="hidden sm:flex text-gray-500 group-hover:text-white transition-colors text-sm">
+                → プロフィールを見る
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
