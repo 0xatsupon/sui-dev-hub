@@ -61,7 +61,10 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
     if (!poolData?.data) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields = (poolData.data.content as any)?.fields;
-    const balanceMist = Number(fields?.balance?.fields?.value ?? 0);
+    const raw = fields?.balance;
+    const balanceMist = Number(
+      typeof raw === "object" ? raw?.fields?.value ?? 0 : raw ?? 0
+    );
     setPoolEmpty(balanceMist < 50_000_000);
   }, [poolData]);
 
