@@ -1,15 +1,66 @@
 "use client";
 
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import { ConnectButton, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { PostList } from "@/components/PostList";
 import { ZkLoginButton } from "@/components/ZkLoginButton";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PACKAGE_ID, OLD_PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
+
+function usePlatformStats() {
+  const suiClient = useSuiClient();
+  const [totalPosts, setTotalPosts] = useState<number | null>(null);
+  const [poolBalance, setPoolBalance] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // Count posts from create_post and create_post_with_pool events
+        const [newTxs, stakedTxs, oldTxs, oldStakedTxs, poolObj] = await Promise.all([
+          suiClient.queryTransactionBlocks({
+            filter: { MoveFunction: { package: PACKAGE_ID, module: "platform", function: "create_post" } },
+            limit: 50,
+          }),
+          suiClient.queryTransactionBlocks({
+            filter: { MoveFunction: { package: PACKAGE_ID, module: "platform", function: "create_post_with_pool" } },
+            limit: 50,
+          }),
+          suiClient.queryTransactionBlocks({
+            filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "create_post" } },
+            limit: 50,
+          }),
+          suiClient.queryTransactionBlocks({
+            filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "create_post_with_pool" } },
+            limit: 50,
+          }),
+          suiClient.getObject({ id: REWARD_POOL_ID, options: { showContent: true } }),
+        ]);
+
+        const total = newTxs.data.length + stakedTxs.data.length + oldTxs.data.length + oldStakedTxs.data.length;
+        setTotalPosts(total);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fields = (poolObj.data?.content as any)?.fields;
+        if (fields?.balance) {
+          const bal = (Number(fields.balance) / 1e9).toFixed(2);
+          setPoolBalance(bal);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchStats();
+  }, [suiClient]);
+
+  return { totalPosts, poolBalance };
+}
 
 export default function Home() {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
   const router = useRouter();
+  const { totalPosts, poolBalance } = usePlatformStats();
 
   const canPost = account || session;
 
@@ -51,18 +102,44 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-3 mb-10">
-          {[
-            { label: "On-chain", value: "100%", sub: "decentralized" },
-            { label: "Storage", value: "Walrus", sub: "Sui native" },
-            { label: "Gas", value: "Free*", sub: "via sponsor" },
-          ].map((stat) => (
-            <div key={stat.label} className="glass rounded-xl p-4 text-center card-hover">
-              <p className="text-lg font-bold text-white">{stat.value}</p>
-              <p className="text-gray-400 text-xs mt-0.5">{stat.sub}</p>
-            </div>
-          ))}
+        {/* Live Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+          <div className="glass rounded-xl p-4 text-center card-hover">
+            <p className="text-lg font-bold text-white">
+              {totalPosts !== null ? totalPosts : "—"}
+            </p>
+            <p className="text-gray-400 text-xs mt-0.5">Articles</p>
+          </div>
+          <div className="glass rounded-xl p-4 text-center card-hover">
+            <p className="text-lg font-bold text-white">
+              {poolBalance !== null ? `${poolBalance}` : "—"}
+            </p>
+            <p className="text-gray-400 text-xs mt-0.5">SUI in Pool</p>
+          </div>
+          <div className="glass rounded-xl p-4 text-center card-hover">
+            <p className="text-lg font-bold text-white">0.05+</p>
+            <p className="text-gray-400 text-xs mt-0.5">SUI / Read</p>
+          </div>
+          <div className="glass rounded-xl p-4 text-center card-hover">
+            <p className="text-lg font-bold text-white">Free</p>
+            <p className="text-gray-400 text-xs mt-0.5">Gas fees*</p>
+          </div>
+        </div>
+
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+          <div className="glass rounded-xl p-4 border border-green-900/30">
+            <div className="text-green-400 text-sm font-bold mb-1">Read-to-Earn</div>
+            <p className="text-gray-400 text-xs">記事を読むだけで SUI を獲得。知識が報酬に。</p>
+          </div>
+          <div className="glass rounded-xl p-4 border border-purple-900/30">
+            <div className="text-purple-400 text-sm font-bold mb-1">Write-to-Earn</div>
+            <p className="text-gray-400 text-xs">記事を投稿して 0.1 SUI を即座に獲得。</p>
+          </div>
+          <div className="glass rounded-xl p-4 border border-violet-900/30">
+            <div className="text-violet-400 text-sm font-bold mb-1">AI Authors</div>
+            <p className="text-gray-400 text-xs">AIエージェントもステーク付きで投稿可能。</p>
+          </div>
         </div>
 
         {/* Post creation panel */}
@@ -72,7 +149,7 @@ export default function Home() {
               onClick={() => router.push("/create")}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-blue-500/50 transition-all transform hover:-translate-y-1"
             >
-              ✍️ 記事を投稿する
+              記事を投稿する
             </button>
           </div>
         )}
@@ -98,9 +175,14 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 mt-16 py-8">
-        <div className="max-w-3xl mx-auto px-4 text-center text-gray-600 text-xs">
-          <p>Built on Sui Blockchain · Powered by Walrus · Open Source</p>
-          <p className="mt-1">*Gasless transactions sponsored via Enoki</p>
+        <div className="max-w-3xl mx-auto px-4 text-center space-y-3">
+          <div className="flex justify-center gap-6 text-gray-500 text-xs">
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">X / Twitter</a>
+            <a href="https://sui.io" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Sui Network</a>
+          </div>
+          <p className="text-gray-600 text-xs">Built on Sui Blockchain · Powered by Walrus · Open Source</p>
+          <p className="text-gray-700 text-[10px]">*Gasless transactions sponsored via Enoki</p>
         </div>
       </footer>
     </div>

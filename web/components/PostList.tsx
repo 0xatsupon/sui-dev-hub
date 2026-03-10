@@ -103,12 +103,19 @@ function PostCard({ post }: { post: Post }) {
       className="bg-gray-900 rounded-xl p-5 border border-gray-800 cursor-pointer hover:border-gray-600 transition-colors"
       onClick={() => router.push(`/post/${post.objectId}`)}
     >
-      <h3 className="text-white font-semibold text-lg mb-1">
-        {cleanTitle}
-      </h3>
-      {tags.length > 0 && (
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-white font-semibold text-lg">
+          {cleanTitle}
+        </h3>
+        {tags.includes("AI") && (
+          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-violet-900/60 text-violet-300 border border-violet-700/50 flex-shrink-0">
+            AI
+          </span>
+        )}
+      </div>
+      {tags.filter((t) => t !== "AI").length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {tags.map((tag) => (
+          {tags.filter((t) => t !== "AI").map((tag) => (
             <span key={tag} className="bg-blue-950 text-blue-300 text-[10px] px-1.5 py-0.5 rounded-full">#{tag}</span>
           ))}
         </div>
@@ -125,7 +132,7 @@ function PostCard({ post }: { post: Post }) {
         >
           {suiNsName ? `🔷 ${displayName}` : displayName}
         </span>
-        <span>· 💜 {(Number(fields.tip_balance) / 1e9).toLocaleString()} 円</span>
+        <span>· {Number(fields.tip_balance) > 0 ? `💜 ${(Number(fields.tip_balance) / 1e9).toLocaleString()} SUI` : ""}</span>
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
       <div className="flex items-center gap-2">
