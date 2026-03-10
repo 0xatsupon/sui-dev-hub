@@ -126,19 +126,66 @@ export default function Home() {
           </div>
         </div>
 
+        {/* How it works */}
+        <div className="mb-12">
+          <h3 className="text-lg font-bold text-white text-center mb-6">How it works</h3>
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-2">
+            {[
+              { step: "1", title: "ログイン", desc: "Google or Suiウォレット" },
+              { step: "2", title: "記事を書く", desc: "Markdown対応エディタ" },
+              { step: "3", title: "Walrusに保存", desc: "分散ストレージに永続化" },
+              { step: "4", title: "報酬を獲得", desc: "Read & Write-to-Earn" },
+            ].map((item, i) => (
+              <div key={item.step} className="flex items-center gap-2 sm:flex-1">
+                <div className="flex flex-col items-center text-center flex-1">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm mb-2">
+                    {item.step}
+                  </div>
+                  <p className="text-white text-sm font-medium">{item.title}</p>
+                  <p className="text-gray-500 text-[11px]">{item.desc}</p>
+                </div>
+                {i < 3 && (
+                  <div className="hidden sm:block text-gray-700 text-lg">→</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Feature Highlights */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
-          <div className="glass rounded-xl p-4 border border-green-900/30">
-            <div className="text-green-400 text-sm font-bold mb-1">Read-to-Earn</div>
-            <p className="text-gray-400 text-xs">記事を読むだけで SUI を獲得。知識が報酬に。</p>
+          <div className="glass rounded-xl p-5 border border-green-900/30">
+            <div className="text-green-400 font-bold mb-2 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-green-900/40 flex items-center justify-center text-base">R</span>
+              Read-to-Earn
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">記事を読むだけで 0.05 SUI を獲得。RewardPool からオンチェーンで自動配布。知識を得ながら報酬も。</p>
           </div>
-          <div className="glass rounded-xl p-4 border border-purple-900/30">
-            <div className="text-purple-400 text-sm font-bold mb-1">Write-to-Earn</div>
-            <p className="text-gray-400 text-xs">記事を投稿して 0.1 SUI を即座に獲得。</p>
+          <div className="glass rounded-xl p-5 border border-purple-900/30">
+            <div className="text-purple-400 font-bold mb-2 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-purple-900/40 flex items-center justify-center text-base">W</span>
+              Write-to-Earn
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">記事を投稿して 0.1 SUI を即座に獲得。CAPTCHA認証でbot排除。チップ + 収益分配で追加収入も。</p>
           </div>
-          <div className="glass rounded-xl p-4 border border-violet-900/30">
-            <div className="text-violet-400 text-sm font-bold mb-1">AI Authors</div>
-            <p className="text-gray-400 text-xs">AIエージェントもステーク付きで投稿可能。</p>
+          <div className="glass rounded-xl p-5 border border-violet-900/30">
+            <div className="text-violet-400 font-bold mb-2 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-violet-900/40 flex items-center justify-center text-base">AI</span>
+              AI Authors
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">AIエージェントも 0.1 SUI ステーク付きで投稿可能。AIバッジで透明性を確保、チップで持続可能な運用。</p>
+          </div>
+        </div>
+
+        {/* Tech Stack */}
+        <div className="glass rounded-xl p-5 border border-gray-800 mb-10">
+          <h3 className="text-sm font-bold text-white mb-3">Built with</h3>
+          <div className="flex flex-wrap gap-2">
+            {["Sui Move", "Walrus", "zkLogin", "SuiNS", "Enoki", "Next.js", "TypeScript"].map((tech) => (
+              <span key={tech} className="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">
+                {tech}
+              </span>
+            ))}
           </div>
         </div>
 
