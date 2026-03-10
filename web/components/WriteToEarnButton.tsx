@@ -87,10 +87,11 @@ export function WriteToEarnButton({ postId, postAuthor }: WriteToEarnButtonProps
     setError("");
 
     const tx = new Transaction();
-    tx.moveCall({
+    const [receipt] = tx.moveCall({
       target: `${PACKAGE_ID}::platform::claim_writing_reward`,
       arguments: [tx.object(REWARD_POOL_ID), tx.object(postId)],
     });
+    tx.transferObjects([receipt], tx.pure.address(currentAddress!));
 
     if (session && !account) {
       try {
