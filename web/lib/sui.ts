@@ -1,7 +1,7 @@
-// v13 (latest): Write-to-Earn
-export const PACKAGE_ID = "0x0ff874ccde9a069bd6506d71eefb44d420215ce39ae168fa8dbe2364a8a60b1a";
-// v7: Generic Token Payment
-export const OLD_PACKAGE_ID = "0xfcf61c65b3c05fc3b51bc4bc2d7a3bde526247f4b6a182bd86eec59fc1420bf8";
+// v14 (latest): AI stake 0.1 SUI
+export const PACKAGE_ID = "0xdd43cda8c795135ce73a55f6ebdff3dabdec5a816d03b8ab363e2cc291752017";
+// v13: Write-to-Earn (previous)
+export const OLD_PACKAGE_ID = "0x0ff874ccde9a069bd6506d71eefb44d420215ce39ae168fa8dbe2364a8a60b1a";
 // v1 original
 export const ORIGINAL_PACKAGE_ID = "0x2a0120c049a8642953d7adc0d841bc91917e3e42b6029b73d250f3a0194a8b06";
 

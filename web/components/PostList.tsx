@@ -165,12 +165,35 @@ function useAllPostIds() {
     { refetchInterval: 5000 }
   );
 
+  // ステーク付き投稿も検索 (AI投稿 = create_post_with_pool)
+  const { data: stakedTxs, isPending: isStakedPending } = useSuiClientQuery(
+    "queryTransactionBlocks",
+    {
+      filter: { MoveFunction: { package: PACKAGE_ID, module: "platform", function: "create_post_with_pool" } },
+      options: { showEvents: true },
+      limit: 50,
+      order: "descending",
+    },
+    { refetchInterval: 5000 }
+  );
+
   const { data: oldTxs, isPending: isOldPending } = useSuiClientQuery(
     "queryTransactionBlocks",
     {
       filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "create_post" } },
       options: { showEvents: true },
-      limit: 20,
+      limit: 50,
+      order: "descending",
+    }
+  );
+
+  // 旧バージョンのステーク付き投稿も検索
+  const { data: oldStakedTxs } = useSuiClientQuery(
+    "queryTransactionBlocks",
+    {
+      filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "create_post_with_pool" } },
+      options: { showEvents: true },
+      limit: 50,
       order: "descending",
     }
   );
@@ -184,6 +207,17 @@ function useAllPostIds() {
       order: "descending",
     },
     { refetchInterval: 10000 }
+  );
+
+  // 旧バージョンの削除も検索
+  const { data: oldDeleteTxs } = useSuiClientQuery(
+    "queryTransactionBlocks",
+    {
+      filter: { MoveFunction: { package: OLD_PACKAGE_ID, module: "platform", function: "delete_post" } },
+      options: { showEvents: true },
+      limit: 50,
+      order: "descending",
+    }
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -204,14 +238,19 @@ function useAllPostIds() {
   };
 
   const newIds = getPostIdsFromTxs(newTxs?.data, "::platform::PostCreated");
+  const stakedIds = getPostIdsFromTxs(stakedTxs?.data, "::platform::PostCreated");
   const oldIds = getPostIdsFromTxs(oldTxs?.data, "::platform::PostCreated");
-  const deletedIdsList = getPostIdsFromTxs(deleteTxs?.data, "::platform::PostDeleted");
+  const oldStakedIds = getPostIdsFromTxs(oldStakedTxs?.data, "::platform::PostCreated");
+  const deletedIdsList = [
+    ...getPostIdsFromTxs(deleteTxs?.data, "::platform::PostDeleted"),
+    ...getPostIdsFromTxs(oldDeleteTxs?.data, "::platform::PostDeleted"),
+  ];
 
   const deletedIds = new Set(deletedIdsList);
 
   return {
-    postIds: [...new Set([...newIds, ...oldIds])].filter((id) => !deletedIds.has(id)),
-    isEventsLoading: isNewPending || isOldPending,
+    postIds: [...new Set([...newIds, ...stakedIds, ...oldIds, ...oldStakedIds])].filter((id) => !deletedIds.has(id)),
+    isEventsLoading: isNewPending || isOldPending || isStakedPending,
   };
 }
 

@@ -19,8 +19,8 @@ module sui_content_platform::platform {
     const DEFAULT_PREMIUM_PRICE_MIST: u64 = 500_000_000;
     // v8: 読了報酬 0.05 SUI
     const READING_REWARD_MIST: u64 = 50_000_000;
-    // v8: 投稿スタック最低額 1 SUI
-    const STAKE_AMOUNT_MIST: u64 = 1_000_000_000;
+    // v8→v14: 投稿ステーク最低額 0.1 SUI
+    const STAKE_AMOUNT_MIST: u64 = 100_000_000;
     // v9: 執筆報酬 0.1 SUI
     const WRITING_REWARD_MIST: u64 = 100_000_000;
 

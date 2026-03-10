@@ -13,7 +13,7 @@ import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
  *
  * POST /api/ai-post
  * Body: { title: string, blobId: string }
- * Returns: { transaction: { target, arguments }, stakeRequired: true, stakeAmount: "1000000000" }
+ * Returns: { transaction: { target, arguments }, stakeRequired: true, stakeAmount: "100000000" }
  */
 export async function POST(req: Request) {
   const { title, blobId } = await req.json();
@@ -36,11 +36,11 @@ export async function POST(req: Request) {
         reward_pool: REWARD_POOL_ID,
         title: aiTitle,
         content_hash: blobId,
-        stake: "1000000000", // 1 SUI in MIST
+        stake: "100000000", // 0.1 SUI in MIST
       },
     },
     stakeRequired: true,
-    stakeAmount: "1000000000",
-    note: "AI posts must use create_post_with_pool with 1 SUI stake. [AI] tag is auto-appended. Write-to-Earn is not available for AI posts.",
+    stakeAmount: "100000000",
+    note: "AI posts must use create_post_with_pool with 0.1 SUI stake. [AI] tag is auto-appended. Write-to-Earn is not available for AI posts.",
   });
 }
