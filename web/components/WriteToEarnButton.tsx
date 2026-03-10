@@ -78,6 +78,8 @@ export function WriteToEarnButton({ postId, postAuthor }: WriteToEarnButtonProps
     setPoolEmpty(balanceMist < 100_000_000);
   }, [poolData]);
 
+  // zkLoginユーザーはSUI引き出しが困難なため非表示
+  if (!account) return null;
   // 著者以外・ウォレット未接続には表示しない
   if (!isAuthor) return null;
   if (!REWARD_POOL_ID) return null;

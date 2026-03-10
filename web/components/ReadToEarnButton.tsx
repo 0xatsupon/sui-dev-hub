@@ -68,6 +68,8 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
     setPoolEmpty(balanceMist < 50_000_000);
   }, [poolData]);
 
+  // zkLoginユーザーはSUI引き出しが困難なため非表示
+  if (!account) return null;
   if (!currentAddress) return null;
   if (!REWARD_POOL_ID) return null;
 

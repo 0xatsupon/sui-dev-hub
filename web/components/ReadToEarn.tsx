@@ -71,7 +71,8 @@ export function ReadToEarnButton({ postId }: ReadToEarnButtonProps) {
     setPoolEmpty(balanceMist < 50_000_000);
   }, [poolData]);
 
-  // ウォレット未接続には表示しない（呼び出し元で制御）
+  // zkLoginユーザーはSUI引き出しが困難なため非表示
+  if (!account) return null;
   if (!currentAddress) return null;
   if (!REWARD_POOL_ID) return null;
 

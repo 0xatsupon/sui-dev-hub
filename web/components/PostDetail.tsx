@@ -248,8 +248,8 @@ export default function PostDetail({ id }: { id: string }) {
         {/* Write-to-Earn: 著者本人に表示 */}
         <WriteToEarnButton postId={id} postAuthor={author} />
 
-        {/* Read-to-Earn: 著者本人以外に表示 */}
-        {!isAuthor && (account || session) && (
+        {/* Read-to-Earn: 著者本人以外・ウォレット接続ユーザーのみ */}
+        {!isAuthor && account && (
           <ReadToEarnButton postId={id} />
         )}
 
