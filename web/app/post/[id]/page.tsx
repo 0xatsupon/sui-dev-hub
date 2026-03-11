@@ -65,5 +65,39 @@ export default async function PostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <PostDetail id={id} />;
+  const fields = await fetchPostFields(id);
+
+  let jsonLd = null;
+  if (fields?.title) {
+    const rawTitle = decodeBytes(fields.title);
+    const { cleanTitle: title } = parseTitle(rawTitle);
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: title,
+      author: {
+        "@type": "Person",
+        name: fields.author ? `${fields.author.slice(0, 6)}...${fields.author.slice(-4)}` : "Anonymous",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "Sui Dev Hub",
+        url: "https://sui-dev-hub-tau.vercel.app",
+      },
+      url: `https://sui-dev-hub-tau.vercel.app/post/${id}`,
+      isAccessibleForFree: true,
+    };
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <PostDetail id={id} />
+    </>
+  );
 }

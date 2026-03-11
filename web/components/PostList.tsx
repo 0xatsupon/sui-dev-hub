@@ -10,6 +10,8 @@ import { useState, useMemo } from "react";
 import { useAuthorName } from "@/lib/profile";
 import { decodeBytes, parseTitle } from "@/lib/utils";
 import { useBookmarks } from "@/lib/bookmarks";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toast";
 
 export type Post = {
   objectId: string;
@@ -31,9 +33,11 @@ function PostCard({ post }: { post: Post }) {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
   const [zkPending, setZkPending] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const router = useRouter();
   const fields = post.content.fields;
   const isPending = walletPending || zkPending;
+  const { toast } = useToast();
   const { displayName, suiNsName } = useAuthorName(fields.author);
   const { toggleBookmark, isBookmarked } = useBookmarks();
   const { cleanTitle, tags } = parseTitle(decodeBytes(fields.title));
@@ -53,9 +57,8 @@ function PostCard({ post }: { post: Post }) {
     signAndExecute({ transaction: tx });
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("この記事を削除しますか？")) return;
+  const executeDelete = async () => {
+    setDeleteModalOpen(false);
     const tx = new Transaction();
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::delete_post`,
@@ -67,8 +70,9 @@ function PostCard({ post }: { post: Post }) {
         setZkPending(true);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
+        toast("記事を削除しました", "success");
       } catch (err) {
-        alert(`削除失敗: ${String(err)}`);
+        toast(`削除失敗: ${String(err)}`, "error");
       } finally {
         setZkPending(false);
       }
@@ -77,12 +81,23 @@ function PostCard({ post }: { post: Post }) {
 
     if (account) {
       signAndExecute({ transaction: tx }, {
-        onError: (err) => alert(`削除失敗: ${String(err)}`),
+        onSuccess: () => toast("記事を削除しました", "success"),
+        onError: (err) => toast(`削除失敗: ${String(err)}`, "error"),
       });
     }
   };
 
   return (
+    <>
+    <ConfirmModal
+      open={deleteModalOpen}
+      title="記事を削除"
+      message="この記事を完全に削除しますか？この操作は取り消せません。"
+      confirmLabel="削除する"
+      destructive
+      onConfirm={executeDelete}
+      onCancel={() => setDeleteModalOpen(false)}
+    />
     <div
       className="bg-gray-900 rounded-xl p-5 border border-gray-800 cursor-pointer hover:border-gray-600 transition-colors"
       onClick={() => router.push(`/post/${post.objectId}`)}
@@ -140,7 +155,7 @@ function PostCard({ post }: { post: Post }) {
         )}
         {isAuthor && (
           <button
-            onClick={handleDelete}
+            onClick={(e) => { e.stopPropagation(); setDeleteModalOpen(true); }}
             disabled={isPending}
             className="text-sm bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-colors"
           >
@@ -149,6 +164,7 @@ function PostCard({ post }: { post: Post }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -256,6 +272,7 @@ export function useAllPostIds() {
 
 export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   const { postIds, isEventsLoading } = useAllPostIds();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("trending");
@@ -464,9 +481,31 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
       </h2>
 
       {filteredPosts.length === 0 ? (
-        <p className="text-gray-500 text-sm">
-          {searchQuery.trim() || selectedTag ? "該当する記事が見つかりません。" : "まだ記事がありません。"}
-        </p>
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <div className="text-5xl mb-4">{searchQuery.trim() || selectedTag || showSaved ? "🔍" : "📝"}</div>
+          <h3 className="text-white font-semibold text-lg mb-2">
+            {showSaved
+              ? "保存した記事はまだありません"
+              : searchQuery.trim() || selectedTag
+                ? "該当する記事が見つかりません"
+                : "まだ記事がありません"}
+          </h3>
+          <p className="text-gray-500 text-sm text-center max-w-md mb-6">
+            {showSaved
+              ? "気になる記事の ☆ ボタンを押して保存しましょう。"
+              : searchQuery.trim() || selectedTag
+                ? "別のキーワードやタグで検索してみてください。"
+                : "最初の記事を書いて、Suiエコシステムに貢献しましょう！"}
+          </p>
+          {!searchQuery.trim() && !selectedTag && !showSaved && (
+            <button
+              onClick={() => router.push("/create")}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium px-6 py-2.5 rounded-lg transition-all"
+            >
+              記事を書く
+            </button>
+          )}
+        </div>
       ) : (
         filteredPosts.map((post) => (
           <PostCard key={post.objectId} post={post} />
