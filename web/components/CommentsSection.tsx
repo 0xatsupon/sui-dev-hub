@@ -7,14 +7,7 @@ import { PACKAGE_ID } from "@/lib/sui";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useAuthorName } from "@/lib/profile";
-
-function decodeBytes(bytes: number[]): string {
-  try {
-    return new TextDecoder().decode(new Uint8Array(bytes));
-  } catch {
-    return "";
-  }
-}
+import { decodeBytes } from "@/lib/utils";
 
 type CommentEvent = {
   comment_id: string;

@@ -3,12 +3,9 @@
 import { useSuiClient } from "@mysten/dapp-kit";
 import { initiateGoogleLogin } from "@/lib/zklogin";
 import { useZkLogin } from "@/context/ZkLoginContext";
+import { shortAddress } from "@/lib/utils";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-
-function shortAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 export function ZkLoginButton() {
   const suiClient = useSuiClient();

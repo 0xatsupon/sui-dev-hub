@@ -20,6 +20,8 @@ export function ProfileEditor() {
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [github, setGithub] = useState("");
+  const [twitter, setTwitter] = useState("");
   const [sponsoring, setSponsoring] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,7 +35,17 @@ export function ProfileEditor() {
         setProfile(p);
         if (p) {
           setUsername(p.username);
-          setBio(p.bio);
+          // bio からソーシャルリンクをパース
+          const parts = p.bio.split("\n---\n");
+          setBio(parts[0]);
+          if (parts[1]) {
+            const lines = parts[1].split("\n");
+            for (const line of lines) {
+              const [key, val] = line.split(":");
+              if (key?.trim() === "github") setGithub(val?.trim() || "");
+              if (key?.trim() === "twitter") setTwitter(val?.trim() || "");
+            }
+          }
         }
       })
       .finally(() => setIsLoading(false));
@@ -47,25 +59,32 @@ export function ProfileEditor() {
     }
     setError("");
 
+    // ソーシャルリンクを bio に結合
+    let fullBio = bio;
+    const socialParts: string[] = [];
+    if (github.trim()) socialParts.push(`github:${github.trim()}`);
+    if (twitter.trim()) socialParts.push(`twitter:${twitter.trim()}`);
+    if (socialParts.length > 0) {
+      fullBio = `${bio}\n---\n${socialParts.join("\n")}`;
+    }
+
     const tx = new Transaction();
-    
+
     if (profile) {
       tx.moveCall({
         target: `${PACKAGE_ID}::platform::edit_profile`,
         arguments: [
           tx.object(profile.id),
           tx.pure.string(username),
-          tx.pure.string(bio),
+          tx.pure.string(fullBio),
         ],
       });
     } else {
-      // create_profile returns a Profile object which MUST be transferred,
-      // otherwise the tx fails with UnusedValueWithoutDrop
       const [profileObj] = tx.moveCall({
         target: `${PACKAGE_ID}::platform::create_profile`,
         arguments: [
           tx.pure.string(username),
-          tx.pure.string(bio),
+          tx.pure.string(fullBio),
         ],
       });
       tx.transferObjects([profileObj], tx.pure.address(address));
@@ -137,7 +156,21 @@ export function ProfileEditor() {
         value={bio}
         onChange={(e) => setBio(e.target.value)}
       />
-      
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <input
+          className="bg-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="GitHub username"
+          value={github}
+          onChange={(e) => setGithub(e.target.value)}
+        />
+        <input
+          className="bg-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="X (Twitter) handle"
+          value={twitter}
+          onChange={(e) => setTwitter(e.target.value)}
+        />
+      </div>
+
       {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
       
       <div className="flex gap-3">
@@ -153,7 +186,8 @@ export function ProfileEditor() {
             onClick={() => {
               setIsEditing(false);
               setUsername(profile.username);
-              setBio(profile.bio);
+              const parts = profile.bio.split("\n---\n");
+              setBio(parts[0]);
             }}
             disabled={isPending}
             className="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-lg"

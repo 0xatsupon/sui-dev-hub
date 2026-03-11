@@ -10,34 +10,16 @@ import remarkGfm from "remark-gfm";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useAuthorName } from "@/lib/profile";
+import { decodeBytes, shortAddress, parseTitle, estimateReadingTime } from "@/lib/utils";
 import { CommentsSection } from "@/components/CommentsSection";
 import { LockAsPremiumButton } from "@/components/PremiumContent";
 import { RevenueShareSetup } from "@/components/RevenueSharing";
 import ReadToEarnButton from "@/components/ReadToEarnButton";
 import { WriteToEarnButton } from "@/components/WriteToEarnButton";
+import { useBookmarks } from "@/lib/bookmarks";
+import { RelatedPosts } from "@/components/RelatedPosts";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
-
-function decodeBytes(bytes: number[]): string {
-  return new TextDecoder().decode(new Uint8Array(bytes));
-}
-
-function shortAddress(addr: string): string {
-  if (!addr) return "";
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
-
-// Extract tags from title: "My Title [Move][Sui]" → { cleanTitle: "My Title", tags: ["Move", "Sui"] }
-function parseTitle(rawTitle: string): { cleanTitle: string; tags: string[] } {
-  const tagRegex = /\[([^\]]+)\]/g;
-  const tags: string[] = [];
-  let match;
-  while ((match = tagRegex.exec(rawTitle)) !== null) {
-    tags.push(match[1]);
-  }
-  const cleanTitle = rawTitle.replace(/\s*\[[^\]]+\]/g, "").trim();
-  return { cleanTitle, tags };
-}
 
 export default function PostDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -49,6 +31,8 @@ export default function PostDetail({ id }: { id: string }) {
   const [content, setContent] = useState<string>("");
   const [contentLoading, setContentLoading] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const { toggleBookmark, isBookmarked } = useBookmarks();
   const isPending = walletPending || zkPending;
 
   const { data, isLoading } = useSuiClientQuery("getObject", {
@@ -69,6 +53,16 @@ export default function PostDetail({ id }: { id: string }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ?.parsedJson as any;
   const configId = coAuthorConfig?.config_id;
+
+  // 閲覧数: ReadRewardClaimed イベントをカウント
+  const { data: readEvents } = useSuiClientQuery("queryEvents", {
+    query: { MoveEventType: `${PACKAGE_ID}::platform::ReadRewardClaimed` },
+    limit: 50,
+    order: "descending",
+  });
+  const readerCount = readEvents?.data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ?.filter((e: any) => e.parsedJson?.post_id === id).length ?? 0;
 
   // Must call all hooks before any early returns (Rules of Hooks)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,22 +218,93 @@ export default function PostDetail({ id }: { id: string }) {
           </div>
         )}
 
-        <p className="text-gray-500 text-sm mb-6 flex items-center gap-2">
+        <div className="text-gray-500 text-sm mb-4 flex items-center gap-2 flex-wrap">
           <span className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
             suiNsName ? "bg-blue-900 text-blue-300" : "bg-gray-800 text-gray-300"
           }`}>
             {suiNsName ? `🔷 ${displayName}` : displayName}
           </span>
+          {content && (
+            <span className="text-gray-500 text-xs">· {estimateReadingTime(content)} min read</span>
+          )}
+          {readerCount > 0 && (
+            <span className="text-gray-500 text-xs">· {readerCount} readers</span>
+          )}
           <span className="text-purple-400 font-medium">· 💜 チップ獲得: {tipBalance} SUI</span>
           {configId && (
             <span className="ml-2 flex items-center gap-1 text-[10px] bg-purple-900/40 border border-purple-800/50 text-purple-300 px-2 rounded-full">
               ✨ 収益分配 ON
             </span>
           )}
-        </p>
+        </div>
 
-        <div className="prose prose-invert prose-sm max-w-none mb-8
-          prose-headings:text-white prose-p:text-gray-200 prose-a:text-blue-400
+        {/* Share buttons */}
+        <div className="flex items-center gap-2 mb-6">
+          <button
+            onClick={() => {
+              const url = typeof window !== "undefined" ? window.location.href : "";
+              const text = `${cleanTitle} | Sui Dev Hub`;
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}&hashtags=SuiDevHub,Sui`, "_blank");
+            }}
+            className="bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Share
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setLinkCopied(true);
+              setTimeout(() => setLinkCopied(false), 2000);
+            }}
+            className="bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+          >
+            {linkCopied ? "Copied!" : "Copy link"}
+          </button>
+          <button
+            onClick={() => toggleBookmark(id, cleanTitle)}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              isBookmarked(id)
+                ? "bg-yellow-900/40 text-yellow-300 border border-yellow-700/50"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"
+            }`}
+          >
+            {isBookmarked(id) ? "★ Saved" : "☆ Save"}
+          </button>
+        </div>
+
+        {/* Table of Contents (3つ以上の見出しがある場合) */}
+        {(() => {
+          if (!content) return null;
+          const headings = content.match(/^#{2,3}\s+.+$/gm);
+          if (!headings || headings.length < 3) return null;
+          return (
+            <nav className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-6">
+              <p className="text-xs font-semibold text-gray-400 uppercase mb-2">目次</p>
+              <ul className="space-y-1">
+                {headings.map((h, i) => {
+                  const level = h.startsWith("### ") ? 3 : 2;
+                  const text = h.replace(/^#{2,3}\s+/, "");
+                  return (
+                    <li key={i} className={level === 3 ? "ml-4" : ""}>
+                      <a
+                        href={`#heading-${i}`}
+                        className="text-sm text-gray-400 hover:text-blue-400 transition-colors"
+                      >
+                        {text}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          );
+        })()}
+
+        <div className="prose prose-invert prose-base max-w-none mb-8 leading-relaxed
+          prose-headings:text-white prose-headings:scroll-mt-20
+          prose-p:text-gray-200 prose-p:leading-relaxed
+          prose-a:text-blue-400
           prose-code:text-green-400 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded
           prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700
           prose-blockquote:border-gray-600 prose-blockquote:text-gray-400
@@ -248,7 +313,23 @@ export default function PostDetail({ id }: { id: string }) {
           {contentLoading ? (
             <p className="text-gray-500 text-sm">コンテンツを読み込み中...</p>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h2: ({ children, ...props }) => {
+                  const headings = content.match(/^#{2,3}\s+.+$/gm) || [];
+                  const text = String(children);
+                  const idx = headings.findIndex((h) => h.replace(/^#{2,3}\s+/, "") === text);
+                  return <h2 id={idx >= 0 ? `heading-${idx}` : undefined} {...props}>{children}</h2>;
+                },
+                h3: ({ children, ...props }) => {
+                  const headings = content.match(/^#{2,3}\s+.+$/gm) || [];
+                  const text = String(children);
+                  const idx = headings.findIndex((h) => h.replace(/^#{2,3}\s+/, "") === text);
+                  return <h3 id={idx >= 0 ? `heading-${idx}` : undefined} {...props}>{children}</h3>;
+                },
+              }}
+            >{content}</ReactMarkdown>
           )}
         </div>
 
@@ -343,6 +424,9 @@ export default function PostDetail({ id }: { id: string }) {
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mt-4">
         <CommentsSection postId={id} />
       </div>
+
+      {/* Related Posts */}
+      <RelatedPosts currentPostId={id} tags={tags} />
     </div>
   );
 }

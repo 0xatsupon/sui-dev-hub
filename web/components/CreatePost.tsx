@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
@@ -41,7 +41,34 @@ export function CreatePost() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 下書き復元（初回マウント時）
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sui-dev-hub-draft");
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.title) setTitle(draft.title);
+        if (draft.content) setContent(draft.content);
+        if (draft.tags) setTags(draft.tags);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // 下書き自動保存（500ms デバウンス）
+  useEffect(() => {
+    if (!title && !content && tags.length === 0) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      localStorage.setItem("sui-dev-hub-draft", JSON.stringify({ title, content, tags }));
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 2000);
+    }, 500);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [title, content, tags]);
 
   const onCaptchaSuccess = useCallback((token: string) => {
     setCaptchaToken(token);
@@ -98,6 +125,7 @@ export function CreatePost() {
     setTitle("");
     setContent("");
     setTags([]);
+    localStorage.removeItem("sui-dev-hub-draft");
     setDone(true);
     setTimeout(() => setDone(false), 3000);
   };
@@ -293,6 +321,7 @@ export function CreatePost() {
         </button>
         {done && <span className="text-green-400 text-sm">投稿しました！</span>}
         {error && <span className="text-red-400 text-sm">{error}</span>}
+        {draftSaved && !done && !error && <span className="text-gray-500 text-xs">下書き保存済み</span>}
       </div>
     </form>
   );

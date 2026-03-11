@@ -1,15 +1,8 @@
 import { Metadata } from "next";
 import PostDetail from "@/components/PostDetail";
+import { decodeBytes, parseTitle } from "@/lib/utils";
 
 const SUI_RPC = "https://fullnode.testnet.sui.io";
-
-function decodeBytes(bytes: number[]): string {
-  return new TextDecoder().decode(new Uint8Array(bytes));
-}
-
-function parseCleanTitle(rawTitle: string): string {
-  return rawTitle.replace(/\s*\[[^\]]+\]/g, "").trim();
-}
 
 async function fetchPostFields(id: string) {
   try {
@@ -41,7 +34,7 @@ export async function generateMetadata({
 
   if (fields?.title) {
     const rawTitle = decodeBytes(fields.title);
-    const title = parseCleanTitle(rawTitle);
+    const { cleanTitle: title } = parseTitle(rawTitle);
 
     return {
       title: `${title} | Sui Dev Hub`,

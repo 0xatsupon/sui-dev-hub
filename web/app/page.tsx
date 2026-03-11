@@ -7,6 +7,9 @@ import { useZkLogin } from "@/context/ZkLoginContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PACKAGE_ID, OLD_PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
+import { FEATURED_POST_IDS } from "@/lib/featured";
+import { useSuiClientQuery } from "@mysten/dapp-kit";
+import { decodeBytes, parseTitle } from "@/lib/utils";
 
 function usePlatformStats() {
   const suiClient = useSuiClient();
@@ -54,6 +57,61 @@ function usePlatformStats() {
   }, [suiClient]);
 
   return { totalPosts, poolBalance };
+}
+
+function FeaturedSection() {
+  const router = useRouter();
+  const { data: objects } = useSuiClientQuery(
+    "multiGetObjects",
+    { ids: FEATURED_POST_IDS, options: { showContent: true } },
+    { enabled: FEATURED_POST_IDS.length > 0 }
+  );
+
+  if (!FEATURED_POST_IDS.length || !objects?.length) return null;
+
+  const posts = objects.filter((o) => o.data?.content);
+  if (posts.length === 0) return null;
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-4">
+        <h3 className="text-lg font-bold text-white">注目記事</h3>
+        <div className="flex-1 h-px bg-gradient-to-r from-yellow-800/50 to-transparent"></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {posts.map((obj) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fields = (obj.data!.content as any).fields;
+          const rawTitle = decodeBytes(fields.title);
+          const { cleanTitle, tags } = parseTitle(rawTitle);
+          const tipBalance = Number(fields.tip_balance) / 1e9;
+          return (
+            <div
+              key={obj.data!.objectId}
+              onClick={() => router.push(`/post/${obj.data!.objectId}`)}
+              className="bg-gradient-to-br from-yellow-900/20 to-gray-900 rounded-xl p-5 border border-yellow-800/30 hover:border-yellow-700/50 cursor-pointer transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-yellow-400 text-xs font-bold">★ Featured</span>
+                {tags.includes("AI") && (
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-violet-900/60 text-violet-300 border border-violet-700/50">AI</span>
+                )}
+              </div>
+              <h4 className="text-white font-semibold text-base mb-2">{cleanTitle}</h4>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {tags.filter((t) => t !== "AI").map((tag) => (
+                  <span key={tag} className="bg-blue-950 text-blue-300 text-[10px] px-1.5 py-0.5 rounded-full">#{tag}</span>
+                ))}
+              </div>
+              {tipBalance > 0 && (
+                <p className="text-purple-400 text-xs">💜 {tipBalance} SUI</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -209,6 +267,9 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* Featured Posts */}
+        <FeaturedSection />
 
         {/* Post list */}
         <div>

@@ -8,8 +8,10 @@ import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useState, useMemo } from "react";
 import { useAuthorName } from "@/lib/profile";
+import { decodeBytes, parseTitle } from "@/lib/utils";
+import { useBookmarks } from "@/lib/bookmarks";
 
-type Post = {
+export type Post = {
   objectId: string;
   content: {
     fields: {
@@ -20,25 +22,6 @@ type Post = {
     };
   };
 };
-
-function decodeBytes(bytes: number[]): string {
-  return new TextDecoder().decode(new Uint8Array(bytes));
-}
-
-function shortAddress(addr: string): string {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
-
-function parseTitle(rawTitle: string): { cleanTitle: string; tags: string[] } {
-  const tagRegex = /\[([^\]]+)\]/g;
-  const tags: string[] = [];
-  let match;
-  while ((match = tagRegex.exec(rawTitle)) !== null) {
-    tags.push(match[1]);
-  }
-  const cleanTitle = rawTitle.replace(/\s*\[[^\]]+\]/g, "").trim();
-  return { cleanTitle, tags };
-}
 
 type SortOption = "newest" | "popular";
 
@@ -52,6 +35,7 @@ function PostCard({ post }: { post: Post }) {
   const fields = post.content.fields;
   const isPending = walletPending || zkPending;
   const { displayName, suiNsName } = useAuthorName(fields.author);
+  const { toggleBookmark, isBookmarked } = useBookmarks();
   const { cleanTitle, tags } = parseTitle(decodeBytes(fields.title));
 
   const isAuthor =
@@ -104,7 +88,7 @@ function PostCard({ post }: { post: Post }) {
       onClick={() => router.push(`/post/${post.objectId}`)}
     >
       <div className="flex items-center gap-2 mb-1">
-        <h3 className="text-white font-semibold text-lg">
+        <h3 className="text-white font-semibold text-lg flex-1">
           {cleanTitle}
         </h3>
         {tags.includes("AI") && (
@@ -112,6 +96,15 @@ function PostCard({ post }: { post: Post }) {
             AI
           </span>
         )}
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleBookmark(post.objectId, cleanTitle); }}
+          className={`flex-shrink-0 text-sm transition-colors ${
+            isBookmarked(post.objectId) ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"
+          }`}
+          title={isBookmarked(post.objectId) ? "保存済み" : "保存する"}
+        >
+          {isBookmarked(post.objectId) ? "★" : "☆"}
+        </button>
       </div>
       {tags.filter((t) => t !== "AI").length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -160,7 +153,7 @@ function PostCard({ post }: { post: Post }) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function useAllPostIds() {
+export function useAllPostIds() {
   const { data: newTxs, isPending: isNewPending } = useSuiClientQuery(
     "queryTransactionBlocks",
     {
@@ -266,6 +259,8 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [showSaved, setShowSaved] = useState(false);
+  const { bookmarkedIds } = useBookmarks();
 
   const { data: objects, isLoading: isObjectsLoading } = useSuiClientQuery(
     "multiGetObjects",
@@ -309,6 +304,12 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
       filtered = filtered.filter((p) => p.tags.includes(selectedTag));
     }
 
+    // Filter by bookmarks
+    if (showSaved) {
+      const savedSet = new Set(bookmarkedIds);
+      filtered = filtered.filter((p) => savedSet.has(p.post.objectId));
+    }
+
     // Sort
     if (sortBy === "popular") {
       filtered.sort((a, b) =>
@@ -321,7 +322,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
       filteredPosts: filtered.map((p) => p.post),
       allTags: [...tagSet].sort(),
     };
-  }, [objects, authorAddress, searchQuery, selectedTag, sortBy]);
+  }, [objects, authorAddress, searchQuery, selectedTag, sortBy, showSaved, bookmarkedIds]);
 
   if (isLoading) {
     return (
@@ -359,9 +360,9 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
             />
             <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
               <button
-                onClick={() => setSortBy("newest")}
+                onClick={() => { setSortBy("newest"); setShowSaved(false); }}
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  sortBy === "newest"
+                  sortBy === "newest" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
@@ -369,14 +370,24 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
                 新着
               </button>
               <button
-                onClick={() => setSortBy("popular")}
+                onClick={() => { setSortBy("popular"); setShowSaved(false); }}
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  sortBy === "popular"
+                  sortBy === "popular" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
                 人気
+              </button>
+              <button
+                onClick={() => setShowSaved(!showSaved)}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  showSaved
+                    ? "bg-yellow-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                ★ 保存済み
               </button>
             </div>
           </div>

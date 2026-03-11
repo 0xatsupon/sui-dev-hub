@@ -5,11 +5,8 @@ import { useEffect, useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { fetchUserProfile, ProfileData } from "@/lib/profile";
 import { PostList } from "@/components/PostList";
-
-function shortAddress(addr: string): string {
-  if (!addr) return "";
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
+import { shortAddress } from "@/lib/utils";
+import { AuthorAnalytics } from "@/components/AuthorAnalytics";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -62,19 +59,56 @@ export default function ProfilePage() {
                 <p className="text-sm font-mono text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full mb-4 inline-flex items-center gap-2">
                   <span>{shortAddress(address)}</span>
                 </p>
-                {profile?.bio ? (
-                  <p className="text-gray-300 text-sm max-w-lg mx-auto leading-relaxed">
-                    {profile.bio}
-                  </p>
-                ) : (
+                {profile?.bio ? (() => {
+                  // bio からソーシャルリンクをパース（末尾の ---\ngithub:xxx\ntwitter:xxx 規約）
+                  const parts = profile.bio.split("\n---\n");
+                  const bioText = parts[0];
+                  const socialLines = parts[1]?.split("\n").filter(Boolean) || [];
+                  const socials: Record<string, string> = {};
+                  for (const line of socialLines) {
+                    const [key, val] = line.split(":");
+                    if (key && val) socials[key.trim()] = val.trim();
+                  }
+                  return (
+                    <>
+                      <p className="text-gray-300 text-sm max-w-lg mx-auto leading-relaxed">
+                        {bioText}
+                      </p>
+                      {Object.keys(socials).length > 0 && (
+                        <div className="flex justify-center gap-3 mt-3">
+                          {socials.github && (
+                            <a href={`https://github.com/${socials.github}`} target="_blank" rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-white text-xs bg-gray-800 px-3 py-1 rounded-full transition-colors">
+                              GitHub: {socials.github}
+                            </a>
+                          )}
+                          {socials.twitter && (
+                            <a href={`https://x.com/${socials.twitter}`} target="_blank" rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-white text-xs bg-gray-800 px-3 py-1 rounded-full transition-colors">
+                              X: @{socials.twitter}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
                   <p className="text-gray-500 text-sm max-w-lg mx-auto italic">
                     自己紹介はまだありません。
+                  </p>
+                )}
+                {profile && profile.total_earned > 0 && (
+                  <p className="text-green-400 text-sm mt-3 font-medium">
+                    {(profile.total_earned / 1e9).toFixed(2)} SUI earned
                   </p>
                 )}
               </>
             )}
           </div>
         </div>
+
+        {/* Author Analytics */}
+        <AuthorAnalytics address={address} />
 
         {/* User's Posts */}
         <div className="mb-4">

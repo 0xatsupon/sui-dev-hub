@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { ORIGINAL_PACKAGE_ID } from "./sui";
+import { decodeBytes, shortAddress } from "./utils";
 
 export type ProfileData = {
   id: string;
@@ -13,19 +14,6 @@ export type ProfileData = {
   bio: string;
   total_earned: number;
 };
-
-function decodeBytes(bytes: number[]): string {
-  try {
-    return new TextDecoder().decode(new Uint8Array(bytes));
-  } catch {
-    return "";
-  }
-}
-
-function shortAddress(addr: string): string {
-  if (!addr || addr.length < 10) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 export async function fetchUserProfile(
   client: ReturnType<typeof useSuiClient>,
