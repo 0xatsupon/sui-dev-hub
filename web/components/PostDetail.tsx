@@ -145,8 +145,8 @@ export default function PostDetail({ id }: { id: string }) {
         setLikePending(true);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
-      } catch {
-        // オンチェーンいいね失敗してもブックマークは維持
+      } catch (err) {
+        console.error("[Save] on-chain like failed (zkLogin):", err);
       } finally {
         setLikePending(false);
       }
@@ -154,7 +154,7 @@ export default function PostDetail({ id }: { id: string }) {
     }
     if (account) {
       signAndExecute({ transaction: tx }, {
-        onError: () => { /* ブックマークは維持 */ },
+        onError: (err) => { console.error("[Save] on-chain like failed (wallet):", err); },
       });
     }
   };
