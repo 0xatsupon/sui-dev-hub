@@ -164,13 +164,13 @@ export default function Home() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
           <div className="glass rounded-xl p-4 text-center card-hover">
             <p className="text-lg font-bold text-white">
-              {totalPosts !== null ? totalPosts : "—"}
+              {totalPosts !== null ? totalPosts : <span className="inline-block w-8 h-5 bg-gray-800 rounded animate-pulse" />}
             </p>
             <p className="text-gray-400 text-xs mt-0.5">Articles</p>
           </div>
           <div className="glass rounded-xl p-4 text-center card-hover">
             <p className="text-lg font-bold text-white">
-              {poolBalance !== null ? `${poolBalance}` : "—"}
+              {poolBalance !== null ? poolBalance : <span className="inline-block w-10 h-5 bg-gray-800 rounded animate-pulse" />}
             </p>
             <p className="text-gray-400 text-xs mt-0.5">SUI in Pool</p>
           </div>
