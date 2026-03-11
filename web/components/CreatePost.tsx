@@ -23,7 +23,7 @@ async function uploadToWalrus(content: string | File): Promise<string> {
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
-const COMMON_TAGS = ["Move", "Sui", "DeFi", "NFT", "zkLogin", "Walrus", "Tutorial", "Security"];
+const COMMON_TAGS = ["Move", "Sui", "DeFi", "NFT", "zkLogin", "Walrus", "Tutorial", "Security", "Ecosystem", "Analysis"];
 
 export function CreatePost() {
   const account = useCurrentAccount();

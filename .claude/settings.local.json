@@ -5,7 +5,11 @@
       "WebFetch(domain:www.anthropic.com)",
       "WebFetch(domain:youtu.be)",
       "WebFetch(domain:gemini.google.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:www.panewslab.com)",
+      "WebFetch(domain:www.gate.com)",
+      "WebFetch(domain:www.cointribune.com)"
     ]
   },
   "hooks": {

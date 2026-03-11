@@ -75,7 +75,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-base font-bold text-white leading-none">Sui Dev Hub</h1>
-              <p className="text-gray-500 text-[10px] mt-0.5">by the Sui community</p>
+              <p className="text-gray-500 text-[10px] mt-0.5">Sui ecosystem insights from builders</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -93,12 +93,12 @@ export default function Home() {
             Sui Testnet Live
           </div>
           <h2 className="text-4xl font-extrabold text-white mb-3 leading-tight">
-            Build on Sui.<br />
-            <span className="gradient-text">Share Your Knowledge.</span>
+            Suiエコシステムを、<br />
+            <span className="gradient-text">ビルダーの視点で読み解く。</span>
           </h2>
           <p className="text-gray-400 text-base max-w-lg mx-auto">
-            The first decentralized technical article platform built entirely on Sui blockchain.
-            Content stored on Walrus. Identities powered by zkLogin &amp; SuiNS.
+            Sui上に構築された分散型コンテンツプラットフォーム。
+            開発者の一次情報を、Walrus に永続保存。読んで稼ぎ、書いて稼ぐ。
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export default function Home() {
 
         {/* How it works */}
         <div className="mb-12">
-          <h3 className="text-lg font-bold text-white text-center mb-6">How it works</h3>
+          <h3 className="text-lg font-bold text-white text-center mb-6">使い方</h3>
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-2">
             {[
               { step: "1", title: "ログイン", desc: "Google or Suiウォレット" },
@@ -202,7 +202,7 @@ export default function Home() {
         )}
         {!canPost && (
           <div className="glass rounded-2xl p-6 mb-10 text-center border border-blue-800/30">
-            <p className="text-gray-300 text-sm mb-3">ウォレットを接続して記事を投稿しよう</p>
+            <p className="text-gray-300 text-sm mb-3">ログインして記事を読む・書く・稼ぐ</p>
             <div className="flex justify-center gap-3">
               <ZkLoginButton />
               <ConnectButton />
@@ -228,8 +228,8 @@ export default function Home() {
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">X / Twitter</a>
             <a href="https://sui.io" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Sui Network</a>
           </div>
-          <p className="text-gray-600 text-xs">Built on Sui Blockchain · Powered by Walrus · Open Source</p>
-          <p className="text-gray-700 text-[10px]">*Gasless transactions sponsored via Enoki</p>
+          <p className="text-gray-600 text-xs">Built on Sui · Stored on Walrus · Open Source</p>
+          <p className="text-gray-700 text-[10px]">*ガス代無料（Enoki スポンサード）</p>
         </div>
       </footer>
     </div>
