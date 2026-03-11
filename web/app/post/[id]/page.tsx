@@ -34,21 +34,23 @@ export async function generateMetadata({
 
   if (fields?.title) {
     const rawTitle = decodeBytes(fields.title);
-    const { cleanTitle: title } = parseTitle(rawTitle);
+    const { cleanTitle: title, tags } = parseTitle(rawTitle);
+    const tagStr = tags.filter((t) => t !== "AI").map((t) => `#${t}`).join(" ");
+    const desc = tagStr ? `${title} — ${tagStr}` : `Sui Dev Hubの技術記事 — ${title}`;
 
     return {
       title: `${title} | Sui Dev Hub`,
-      description: `Sui Dev Hubの技術記事 — ${title}`,
+      description: desc,
       openGraph: {
         title: `${title} | Sui Dev Hub`,
-        description: `Sui Dev Hubの技術記事 — ${title}`,
+        description: desc,
         type: "article",
         siteName: "Sui Dev Hub",
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title: `${title} | Sui Dev Hub`,
-        description: `Sui Dev Hubの技術記事 — ${title}`,
+        description: desc,
       },
     };
   }

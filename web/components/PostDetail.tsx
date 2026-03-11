@@ -13,6 +13,7 @@ import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useAuthorName } from "@/lib/profile";
 import { decodeBytes, shortAddress, parseTitle, estimateReadingTime } from "@/lib/utils";
 import { CommentsSection } from "@/components/CommentsSection";
+import Image from "next/image";
 import { LockAsPremiumButton } from "@/components/PremiumContent";
 import { RevenueShareSetup } from "@/components/RevenueSharing";
 import ReadToEarnButton from "@/components/ReadToEarnButton";
@@ -338,6 +339,25 @@ export default function PostDetail({ id }: { id: string }) {
                   const text = String(children);
                   const idx = headings.findIndex((h) => h.replace(/^#{2,3}\s+/, "") === text);
                   return <h3 id={idx >= 0 ? `heading-${idx}` : undefined} {...props}>{children}</h3>;
+                },
+                img: ({ src, alt }) => {
+                  if (!src || typeof src !== "string") return null;
+                  // Walrus画像はnext/imageで最適化、それ以外はそのまま
+                  if (src.includes("walrus") || src.includes("aggregator")) {
+                    return (
+                      <Image
+                        src={src}
+                        alt={alt || ""}
+                        width={800}
+                        height={450}
+                        className="rounded-xl border border-gray-700 shadow-lg max-h-96 object-cover mx-auto"
+                        loading="lazy"
+                        unoptimized
+                      />
+                    );
+                  }
+                  // eslint-disable-next-line @next/next/no-img-element
+                  return <img src={src} alt={alt || ""} />;
                 },
               }}
             >{content}</ReactMarkdown>
